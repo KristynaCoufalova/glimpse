@@ -8,11 +8,11 @@ import Constants from 'expo-constants';
 // In a real app, these values would be stored in environment variables
 // or in a secure configuration file that's not committed to version control
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "glimpse-app.firebaseapp.com",
-  projectId: "glimpse-app",
-  storageBucket: "glimpse-app.appspot.com",
-  messagingSenderId: "123456789012",
+  apiKey: "YAIzaSyBSPsfibfymk7alMe5JpF8W_-nTmSdY7AI", // done
+  authDomain: "glimpse-31af8.firebaseapp.com", // done
+  projectId: "glimpse-31af8", // done
+  storageBucket: "glimpse-31af8.appspot.com", // done
+  messagingSenderId: "737095863798", // done
   appId: "1:123456789012:web:abcdef1234567890",
   measurementId: "G-ABCDEFGHIJ"
 };
