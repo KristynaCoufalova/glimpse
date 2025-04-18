@@ -1,28 +1,63 @@
 {
   "expo": {
-    "name": "glimpse",
+    "name": "Glimpse",
     "slug": "glimpse",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#4ECDC4"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.glimpseapp.glimpse"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      }
+        "backgroundColor": "#4ECDC4"
+      },
+      "package": "com.glimpseapp.glimpse"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Glimpse to access your camera to record videos and share with your connections."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Glimpse to access your photos to share with your connections.",
+          "savePhotosPermission": "Allow Glimpse to save videos to your photos.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#4ECDC4",
+          "sounds": [
+            "./assets/notification-sound.wav"
+          ]
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "glimpse-app"
+      }
     }
   }
 }

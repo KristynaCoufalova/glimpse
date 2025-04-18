@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Glimpse - Stay Connected</title>
+  <style>
+    /* Base styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    /* App container */
+    #root {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    
+    /* Loading screen */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #4ECDC4;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .loading-logo {
+      font-size: 3rem;
+      font-weight: bold;
+      margin-bottom: 20px;
+    }
+    
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+      margin-bottom: 20px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      font-size: 1.2rem;
+      margin-bottom: 10px;
+    }
+    
+    .loading-subtext {
+      font-size: 0.9rem;
+      opacity: 0.8;
+    }
+    
+    /* Mobile device frame */
+    .device-frame {
+      display: none;
+      max-width: 375px;
+      height: 812px;
+      margin: 50px auto;
+      background-color: white;
+      border-radius: 40px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      position: relative;
+      border: 10px solid #333;
+    }
+    
+    /* Media queries */
+    @media (min-width: 768px) {
+      body {
+        background-color: #e0e0e0;
+      }
+      
+      .device-frame {
+        display: block;
+      }
+      
+      #root {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Mobile device frame for desktop view -->
+  <div class="device-frame">
+    <!-- React app root -->
+    <div id="root">
+      <!-- Loading screen (will be replaced by React) -->
+      <div class="loading-container">
+        <div class="loading-logo">Glimpse</div>
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading your connections...</div>
+        <div class="loading-subtext">Stay close, even when far apart</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- For mobile view, the app will render directly in the body -->
+  <script>
+    // Check if we're on mobile
+    if (window.innerWidth < 768) {
+      // Remove the device frame
+      document.querySelector('.device-frame').style.display = 'none';
+      // Move the root element to the body
+      document.body.appendChild(document.getElementById('root'));
+    }
+  </script>
+</body>
+</html>
