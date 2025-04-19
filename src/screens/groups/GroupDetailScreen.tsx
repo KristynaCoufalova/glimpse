@@ -5,12 +5,11 @@ import {
   View,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Image,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -252,19 +251,17 @@ const GroupDetailScreen: React.FC = () => {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeScreen style={styles.container}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ECDC4" />
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
   if (error || !group) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="dark" />
+      <SafeScreen style={styles.container}>
         <View style={styles.errorContainer}>
           <Ionicons name="alert-circle" size={60} color="#FF6B6B" />
           <Text style={styles.errorText}>{error || 'An error occurred'}</Text>
@@ -272,14 +269,12 @@ const GroupDetailScreen: React.FC = () => {
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-
+    <SafeScreen style={styles.container}>
       <ScrollView>
         {/* Group header */}
         <View style={styles.groupHeader}>
@@ -352,7 +347,7 @@ const GroupDetailScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeScreen>
   );
 };
 

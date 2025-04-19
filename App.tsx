@@ -4,7 +4,6 @@ import { Provider } from 'react-redux';
 import { store } from './src/store';
 import { NavigationContainer } from '@react-navigation/native';
 import Navigation from './src/navigation';
-import { StatusBar } from 'expo-status-bar';
 import { LogBox } from 'react-native';
 import { ThemeProvider } from './src/theme/ThemeProvider';
 
@@ -21,7 +20,6 @@ export default function App() {
       <ThemeProvider>
         <SafeAreaProvider>
           <NavigationContainer>
-            <StatusBar style="light" />
             <Navigation />
           </NavigationContainer>
         </SafeAreaProvider>

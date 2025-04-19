@@ -1,8 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getAuth } from 'firebase/auth';
+import { initializeAuth, getAuth, Persistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -18,21 +18,44 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Auth
+// Create a proper class-based persistence mechanism using AsyncStorage
+// This should satisfy Firebase's expectation for a class definition
+class ReactNativePersistence implements Partial<Persistence> {
+  readonly type = 'LOCAL';
+  async get(key: string): Promise<string | null> {
+    try {
+      const value = await ReactNativeAsyncStorage.getItem(key);
+      return value;
+    } catch (error) {
+      console.error('Error reading from AsyncStorage:', error);
+      return null;
+    }
+  }
+  async set(key: string, value: string): Promise<void> {
+    try {
+      await ReactNativeAsyncStorage.setItem(key, value);
+    } catch (error) {
+      console.error('Error writing to AsyncStorage:', error);
+    }
+  }
+  async remove(key: string): Promise<void> {
+    try {
+      await ReactNativeAsyncStorage.removeItem(key);
+    } catch (error) {
+      console.error('Error removing from AsyncStorage:', error);
+    }
+  }
+}
+
+// Create an instance of our persistence class
+const reactNativePersistence = new ReactNativePersistence();
+
+// Initialize Auth with our custom AsyncStorage persistence
 let auth;
-
 try {
-  // Using the exact pattern from the Firebase warning
-  // Using type assertion to bypass TypeScript constraints
-  const getReactNativePersistence = (asyncStorage: any) => ({
-    type: 'asyncStorage',
-    storage: asyncStorage,
-  }) as any;
-
   auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
+    persistence: reactNativePersistence as unknown as Persistence,
   });
-  
   console.log('Firebase Auth initialized with React Native persistence');
 } catch (error) {
   // Fallback to regular auth if persistence setup fails

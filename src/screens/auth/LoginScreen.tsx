@@ -12,7 +12,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { AuthStackParamList } from '../../navigation';
 
@@ -56,11 +56,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar style="dark" />
+    <SafeScreen style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <View style={styles.logoContainer}>
         <Text style={styles.logoText}>Glimpse</Text>
         <Text style={styles.tagline}>Stay connected with moments that matter</Text>
@@ -100,13 +100,17 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeScreen>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     backgroundColor: '#fff',
+  },
+  keyboardAvoidingView: {
     flex: 1,
     padding: 20,
   },

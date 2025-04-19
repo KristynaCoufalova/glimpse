@@ -7,9 +7,8 @@ import {
   TouchableOpacity,
   Text,
   ActivityIndicator,
-  SafeAreaView,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../../navigation';
@@ -200,9 +199,11 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
-
+    <SafeScreen 
+      style={styles.container} 
+      statusBarStyle="light-content" 
+      statusBarColor="#000"
+    >
       {/* Group filters at top */}
       {renderGroupFilter()}
 
@@ -247,7 +248,7 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
       >
         <Ionicons name="add-circle" size={60} color="#4ECDC4" />
       </TouchableOpacity>
-    </SafeAreaView>
+    </SafeScreen>
   );
 };
 
@@ -292,11 +293,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   groupFilterContainer: {
-    left: 0,
     paddingTop: 10,
-    position: 'absolute',
-    right: 0,
-    top: 0,
     zIndex: 10,
   },
   groupFilterItem: {

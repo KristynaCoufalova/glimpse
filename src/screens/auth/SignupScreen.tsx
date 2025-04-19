@@ -10,7 +10,7 @@ import {
   ScrollView,
   ActivityIndicator
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useDispatch } from 'react-redux';
 import { AuthStackParamList } from '../../navigation';
@@ -83,12 +83,12 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
-    >
-      <StatusBar style="dark" />
+    <SafeScreen style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.keyboardAvoidingView}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+      >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
           <Text style={styles.headerText}>Create Account</Text>
@@ -153,7 +153,8 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeScreen>
   );
 };
 
@@ -161,6 +162,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   scrollContent: {
     padding: 20,

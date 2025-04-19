@@ -9,7 +9,7 @@ import {
   Image,
   Animated,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
 
@@ -129,8 +129,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
+    <SafeScreen style={styles.container}>
       
       <FlatList
         ref={flatListRef}
@@ -169,7 +168,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeScreen>
   );
 };
 

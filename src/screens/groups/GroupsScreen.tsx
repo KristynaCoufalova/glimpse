@@ -5,11 +5,10 @@ import {
   View,
   FlatList,
   TouchableOpacity,
-  SafeAreaView,
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
@@ -144,9 +143,7 @@ const GroupsScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-
+    <SafeScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Groups</Text>
         <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
@@ -180,7 +177,7 @@ const GroupsScreen: React.FC = () => {
           }
         />
       )}
-    </SafeAreaView>
+    </SafeScreen>
   );
 };
 

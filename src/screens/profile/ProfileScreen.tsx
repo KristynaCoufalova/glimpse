@@ -4,14 +4,13 @@ import {
   Text, 
   View, 
   TouchableOpacity, 
-  SafeAreaView,
   ScrollView,
   Switch,
   Alert,
   ActivityIndicator,
   Image
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -91,9 +90,7 @@ const ProfileScreen: React.FC = () => {
   };
   
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="dark" />
-      
+    <SafeScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
@@ -252,7 +249,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </ScrollView>
       )}
-    </SafeAreaView>
+    </SafeScreen>
   );
 };
 

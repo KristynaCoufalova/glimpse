@@ -4,14 +4,13 @@ import {
   Text,
   View,
   TouchableOpacity,
-  SafeAreaView,
   TextInput,
   ScrollView,
   ActivityIndicator,
   Alert,
   Modal,
 } from 'react-native';
-import { StatusBar } from 'expo-status-bar';
+import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import * as ExpoCamera from 'expo-camera';
 import { CameraView } from 'expo-camera';
@@ -219,20 +218,18 @@ const RecordingScreen: React.FC = () => {
 
   if (hasPermission === null) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
+      <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ECDC4" />
           <Text style={styles.loadingText}>Requesting camera permission...</Text>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
   if (hasPermission === false) {
     return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar style="light" />
+      <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
         <View style={styles.permissionContainer}>
           <Ionicons name="videocam-off" size={60} color="#FF6B6B" />
           <Text style={styles.permissionTitle}>Camera Permission Required</Text>
@@ -244,13 +241,12 @@ const RecordingScreen: React.FC = () => {
             <Text style={styles.permissionButtonText}>Go Back</Text>
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </SafeScreen>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+    <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
 
       {/* Camera preview or video preview */}
       {!videoUri ? (
@@ -422,7 +418,7 @@ const RecordingScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeScreen>
   );
 };
 
