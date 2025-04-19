@@ -2,22 +2,28 @@ import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import groupsReducer from './slices/groupsSlice';
 import videosReducer from './slices/videosSlice';
+import userReducer from './slices/userSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     groups: groupsReducer,
     videos: videosReducer,
+    user: userReducer,
   },
-  middleware: getDefaultMiddleware =>
+  middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
-        ignoredActions: ['auth/login/fulfilled', 'auth/signup/fulfilled'],
+        ignoredActions: [
+          'auth/login/fulfilled', 
+          'auth/signup/fulfilled',
+          'user/updateProfile/fulfilled'
+        ],
         // Ignore these field paths in all actions
-        ignoredActionPaths: ['payload.user', 'meta.arg'],
+        ignoredActionPaths: ['payload.user', 'meta.arg', 'payload.photoURL'],
         // Ignore these paths in the state
-        ignoredPaths: ['auth.user'],
+        ignoredPaths: ['auth.user', 'user.user.photoURL'],
       },
     }),
 });

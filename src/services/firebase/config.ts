@@ -1,7 +1,8 @@
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp } from 'firebase/app';
+import { initializeAuth, getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -14,15 +15,35 @@ const firebaseConfig = {
   measurementId: 'G-4NKD612834',
 };
 
-// Initialize Firebase only if it hasn't been initialized already
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Auth
+let auth;
+
+try {
+  // Using the exact pattern from the Firebase warning
+  // Using type assertion to bypass TypeScript constraints
+  const getReactNativePersistence = (asyncStorage: any) => ({
+    type: 'asyncStorage',
+    storage: asyncStorage,
+  }) as any;
+
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+  
+  console.log('Firebase Auth initialized with React Native persistence');
+} catch (error) {
+  // Fallback to regular auth if persistence setup fails
+  auth = getAuth(app);
+  console.warn(
+    'Using default Firebase Auth without persistence. Authentication state may not persist between sessions.'
+  );
+}
 
 // Initialize Firebase services
-const auth = getAuth(app);
 const firestore = getFirestore(app);
 const storage = getStorage(app);
-
-// Note: In Firebase v11, React Native persistence is handled differently
-// We'll use the basic approach for now to fix the initialization issues
 
 export { app, auth, firestore, storage };
