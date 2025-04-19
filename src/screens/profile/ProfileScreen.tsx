@@ -217,19 +217,28 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Account</Text>
             
-            <TouchableOpacity style={styles.accountOption}>
+            <TouchableOpacity 
+              style={styles.accountOption}
+              onPress={() => navigation.navigate('HelpSupport')}
+            >
               <Ionicons name="help-circle-outline" size={24} color="#666" />
               <Text style={styles.accountOptionText}>Help & Support</Text>
               <Ionicons name="chevron-forward" size={20} color="#ccc" />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.accountOption}>
+            <TouchableOpacity 
+              style={styles.accountOption}
+              onPress={() => navigation.navigate('PrivacyPolicy')}
+            >
               <Ionicons name="document-text-outline" size={24} color="#666" />
               <Text style={styles.accountOptionText}>Privacy Policy</Text>
               <Ionicons name="chevron-forward" size={20} color="#ccc" />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.accountOption}>
+            <TouchableOpacity 
+              style={styles.accountOption}
+              onPress={() => navigation.navigate('TermsOfService')}
+            >
               <Ionicons name="information-circle-outline" size={24} color="#666" />
               <Text style={styles.accountOptionText}>Terms of Service</Text>
               <Ionicons name="chevron-forward" size={20} color="#ccc" />

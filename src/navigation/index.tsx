@@ -15,6 +15,9 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import RecordingScreen from '../screens/recording/RecordingScreen';
 import OnboardingScreen from '../screens/auth/OnboardingScreen';
+import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
+import TermsOfServiceScreen from '../screens/legal/TermsOfServiceScreen';
+import HelpSupportScreen from '../screens/support/HelpSupportScreen';
 
 // Define types for navigation
 export type RootStackParamList = {
@@ -25,6 +28,9 @@ export type RootStackParamList = {
   CreateGroup: undefined;
   EditProfile: undefined;
   Onboarding: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  HelpSupport: undefined;
 };
 
 export type AuthStackParamList = {
@@ -127,6 +133,30 @@ const Navigation = () => {
                 headerShown: false,
                 presentation: 'card',
                 animationTypeForReplace: 'push',
+              }}
+            />
+            <RootStack.Screen
+              name="PrivacyPolicy"
+              component={PrivacyPolicyScreen}
+              options={{
+                headerShown: false,
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="TermsOfService"
+              component={TermsOfServiceScreen}
+              options={{
+                headerShown: false,
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="HelpSupport"
+              component={HelpSupportScreen}
+              options={{
+                headerShown: false,
+                presentation: 'card',
               }}
             />
           </>
