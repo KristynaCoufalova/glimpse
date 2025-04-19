@@ -1,11 +1,11 @@
 import React from 'react';
-import { 
-  StyleSheet, 
-  TouchableOpacity, 
-  Text, 
-  ActivityIndicator, 
-  ViewStyle, 
-  TextStyle 
+import {
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  ViewStyle,
+  TextStyle,
 } from 'react-native';
 
 interface ButtonProps {
@@ -106,21 +106,9 @@ const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.7}
     >
       {loading ? (
-        <ActivityIndicator 
-          size="small" 
-          color={type === 'outline' ? '#4ECDC4' : '#fff'} 
-        />
+        <ActivityIndicator size="small" color={type === 'outline' ? '#4ECDC4' : '#fff'} />
       ) : (
-        <Text
-          style={[
-            styles.text,
-            getTextStyle(),
-            getTextSizeStyle(),
-            textStyle,
-          ]}
-        >
-          {title}
-        </Text>
+        <Text style={[styles.text, getTextStyle(), getTextSizeStyle(), textStyle]}>{title}</Text>
       )}
     </TouchableOpacity>
   );
@@ -128,10 +116,10 @@ const Button: React.FC<ButtonProps> = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 8,
-    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 8,
     flexDirection: 'row',
+    justifyContent: 'center',
   },
   text: {
     fontWeight: '600',
@@ -146,8 +134,8 @@ const styles = StyleSheet.create({
   },
   outlineButton: {
     backgroundColor: 'transparent',
-    borderWidth: 1,
     borderColor: '#4ECDC4',
+    borderWidth: 1,
   },
   dangerButton: {
     backgroundColor: '#FF6B6B',
@@ -170,16 +158,16 @@ const styles = StyleSheet.create({
   },
   // Button sizes
   smallButton: {
-    paddingVertical: 8,
     paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   mediumButton: {
-    paddingVertical: 12,
     paddingHorizontal: 24,
+    paddingVertical: 12,
   },
   largeButton: {
-    paddingVertical: 16,
     paddingHorizontal: 32,
+    paddingVertical: 16,
   },
   // Text sizes
   smallText: {

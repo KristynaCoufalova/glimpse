@@ -8,25 +8,25 @@
  */
 export const formatDate = (date: Date, format: 'short' | 'medium' | 'long' = 'medium'): string => {
   if (!date) return '';
-  
+
   const now = new Date();
   const diff = now.getTime() - date.getTime();
   const diffInMinutes = Math.floor(diff / 60000);
   const diffInHours = Math.floor(diff / 3600000);
   const diffInDays = Math.floor(diff / 86400000);
-  
+
   // If less than 24 hours ago, show relative time
   if (diffInDays < 1) {
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     return `${diffInHours}h ago`;
   }
-  
+
   // If less than 7 days ago, show day of week
   if (diffInDays < 7) {
     return `${diffInDays}d ago`;
   }
-  
+
   // Otherwise, show formatted date
   switch (format) {
     case 'short':
@@ -75,10 +75,12 @@ export const isValidEmail = (email: string): boolean => {
  * @returns Whether the password is valid (min 8 chars, 1 uppercase, 1 lowercase, 1 number)
  */
 export const isValidPassword = (password: string): boolean => {
-  return password.length >= 8 &&
+  return (
+    password.length >= 8 &&
     /[A-Z]/.test(password) &&
     /[a-z]/.test(password) &&
-    /[0-9]/.test(password);
+    /[0-9]/.test(password)
+  );
 };
 
 /**
@@ -88,23 +90,23 @@ export const isValidPassword = (password: string): boolean => {
  */
 export const getPasswordStrength = (password: string): { score: number; feedback: string } => {
   if (!password) return { score: 0, feedback: 'Password is required' };
-  
+
   let score = 0;
   let feedback = '';
-  
+
   // Length check
   if (password.length >= 8) score += 1;
   if (password.length >= 12) score += 1;
-  
+
   // Complexity checks
   if (/[A-Z]/.test(password)) score += 1;
   if (/[a-z]/.test(password)) score += 1;
   if (/[0-9]/.test(password)) score += 1;
   if (/[^A-Za-z0-9]/.test(password)) score += 1;
-  
+
   // Normalize score to 0-4 range
   score = Math.min(4, Math.floor(score / 1.5));
-  
+
   // Generate feedback
   switch (score) {
     case 0:
@@ -125,7 +127,7 @@ export const getPasswordStrength = (password: string): { score: number; feedback
     default:
       feedback = '';
   }
-  
+
   return { score, feedback };
 };
 
@@ -169,11 +171,11 @@ export const getUserTimezone = (): string => {
  */
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 };
 
@@ -188,13 +190,13 @@ export const debounce = <T extends (...args: any[]) => any>(
   wait: number
 ): ((...args: Parameters<T>) => void) => {
   let timeout: NodeJS.Timeout | null = null;
-  
-  return function(...args: Parameters<T>) {
+
+  return function (...args: Parameters<T>) {
     const later = () => {
       timeout = null;
       func(...args);
     };
-    
+
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(later, wait);
   };

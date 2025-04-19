@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  ActivityIndicator, 
-  Text, 
-  Modal, 
+import {
+  StyleSheet,
+  View,
+  ActivityIndicator,
+  Text,
+  Modal,
   ViewStyle,
-  TextStyle
+  TextStyle,
 } from 'react-native';
 
 interface LoadingProps {
@@ -35,17 +35,11 @@ const Loading: React.FC<LoadingProps> = ({
   // If overlay is true, render a modal with a semi-transparent background
   if (overlay) {
     return (
-      <Modal
-        transparent
-        animationType="fade"
-        visible={visible}
-      >
+      <Modal transparent animationType="fade" visible={visible}>
         <View style={styles.modalContainer}>
           <View style={[styles.overlayContainer, containerStyle]}>
             <ActivityIndicator size={spinnerSize} color={spinnerColor} />
-            {text && (
-              <Text style={[styles.text, textStyle]}>{text}</Text>
-            )}
+            {text && <Text style={[styles.text, textStyle]}>{text}</Text>}
           </View>
         </View>
       </Modal>
@@ -56,43 +50,41 @@ const Loading: React.FC<LoadingProps> = ({
   return (
     <View style={[styles.container, containerStyle]}>
       <ActivityIndicator size={spinnerSize} color={spinnerColor} />
-      {text && (
-        <Text style={[styles.text, textStyle]}>{text}</Text>
-      )}
+      {text && <Text style={[styles.text, textStyle]}>{text}</Text>}
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
   },
   modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
   },
   overlayContainer: {
-    padding: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    elevation: 5,
+    justifyContent: 'center',
+    minHeight: 120,
+    minWidth: 120,
+    padding: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    elevation: 5,
-    minWidth: 120,
-    minHeight: 120,
   },
   text: {
-    marginTop: 10,
-    fontSize: 16,
     color: '#333',
+    fontSize: 16,
+    marginTop: 10,
     textAlign: 'center',
   },
 });

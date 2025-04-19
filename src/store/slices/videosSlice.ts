@@ -1,17 +1,17 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
   Timestamp,
   serverTimestamp,
-  FieldValue
+  FieldValue,
 } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { firestore, storage } from '../../services/firebase/config';
@@ -96,24 +96,24 @@ export const uploadVideo = createAsyncThunk(
       // Create a reference to the video file in Firebase Storage
       const videoFileName = `videos/${data.userId}/${Date.now()}.mp4`;
       const videoRef = ref(storage, videoFileName);
-      
+
       // Convert video URI to blob
       const response = await fetch(data.videoUri);
       const blob = await response.blob();
-      
+
       // Upload video to Firebase Storage with progress tracking
       const uploadTask = uploadBytesResumable(videoRef, blob);
-      
+
       // Return a promise that resolves when the upload is complete
       return new Promise<Video>((resolve, reject) => {
         uploadTask.on(
           'state_changed',
-          (snapshot) => {
+          snapshot => {
             // Track upload progress
             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
             dispatch(setUploadProgress(progress));
           },
-          (error) => {
+          error => {
             // Handle upload error
             reject(error);
           },
@@ -122,11 +122,11 @@ export const uploadVideo = createAsyncThunk(
             try {
               const videoURL = await getDownloadURL(uploadTask.snapshot.ref);
               const thumbnailURL = generateThumbnailURL(videoURL);
-              
+
               // Create video document in Firestore
               const videoRef = doc(collection(firestore, 'videos'));
               const now = serverTimestamp();
-              
+
               const newVideo: Omit<Video, 'id'> = {
                 creator: data.userId,
                 groupIds: data.groupIds,
@@ -147,18 +147,18 @@ export const uploadVideo = createAsyncThunk(
                   comments: 0,
                 },
               };
-              
+
               await setDoc(videoRef, newVideo);
-              
+
               // Update group lastActivity
               for (const groupId of data.groupIds) {
                 dispatch(updateGroupLastActivity(groupId));
               }
-              
+
               // Get the created video with its ID
               const videoSnapshot = await getDoc(videoRef);
               const videoData = videoSnapshot.data() as Omit<Video, 'id'>;
-              
+
               resolve({
                 id: videoRef.id,
                 ...videoData,
@@ -183,7 +183,7 @@ export const fetchVideosForGroup = createAsyncThunk(
   async (data: FetchVideosForGroupData, { rejectWithValue }) => {
     try {
       const { groupId, limit: queryLimit = 20 } = data;
-      
+
       // Query videos for the specified group
       const videosQuery = query(
         collection(firestore, 'videos'),
@@ -191,17 +191,17 @@ export const fetchVideosForGroup = createAsyncThunk(
         orderBy('createdAt', 'desc'),
         limit(queryLimit)
       );
-      
+
       const videosSnapshot = await getDocs(videosQuery);
       const videos: Video[] = [];
-      
-      videosSnapshot.forEach((doc) => {
+
+      videosSnapshot.forEach(doc => {
         videos.push({
           id: doc.id,
           ...doc.data(),
         } as Video);
       });
-      
+
       return videos;
     } catch (error) {
       if (error instanceof Error) {
@@ -217,29 +217,29 @@ export const fetchFeedVideos = createAsyncThunk(
   async (data: FetchFeedVideosData, { rejectWithValue }) => {
     try {
       const { userId, limit: queryLimit = 20 } = data;
-      
+
       // First, get the user's groups
       const userGroupsQuery = query(
         collection(firestore, 'groups'),
         where(`members.${userId}.id`, '==', userId)
       );
-      
+
       const userGroupsSnapshot = await getDocs(userGroupsQuery);
       const groupIds: string[] = [];
-      
-      userGroupsSnapshot.forEach((doc) => {
+
+      userGroupsSnapshot.forEach(doc => {
         groupIds.push(doc.id);
       });
-      
+
       if (groupIds.length === 0) {
         return [];
       }
-      
+
       // Query videos for the user's groups
       // Note: Firestore doesn't support OR queries with array-contains
       // In a real app, we might need a more complex solution or use a cloud function
       const videos: Video[] = [];
-      
+
       for (const groupId of groupIds) {
         const videosQuery = query(
           collection(firestore, 'videos'),
@@ -247,10 +247,10 @@ export const fetchFeedVideos = createAsyncThunk(
           orderBy('createdAt', 'desc'),
           limit(queryLimit)
         );
-        
+
         const videosSnapshot = await getDocs(videosQuery);
-        
-        videosSnapshot.forEach((doc) => {
+
+        videosSnapshot.forEach(doc => {
           // Check if we already have this video (from another group)
           if (!videos.some(v => v.id === doc.id)) {
             videos.push({
@@ -260,14 +260,14 @@ export const fetchFeedVideos = createAsyncThunk(
           }
         });
       }
-      
+
       // Sort by createdAt (newest first)
       videos.sort((a, b) => {
         const aTime = a.createdAt as Timestamp;
         const bTime = b.createdAt as Timestamp;
         return bTime.seconds - aTime.seconds;
       });
-      
+
       // Limit to the requested number of videos
       return videos.slice(0, queryLimit);
     } catch (error) {
@@ -285,11 +285,11 @@ export const fetchVideoById = createAsyncThunk(
     try {
       const videoRef = doc(firestore, 'videos', videoId);
       const videoSnapshot = await getDoc(videoRef);
-      
+
       if (!videoSnapshot.exists()) {
         return rejectWithValue('Video not found');
       }
-      
+
       return {
         id: videoSnapshot.id,
         ...videoSnapshot.data(),
@@ -321,13 +321,13 @@ const videosSlice = createSlice({
     setCurrentVideo: (state, action: PayloadAction<Video | null>) => {
       state.currentVideo = action.payload;
     },
-    clearVideosError: (state) => {
+    clearVideosError: state => {
       state.error = null;
     },
     setUploadProgress: (state, action: PayloadAction<number>) => {
       state.uploadProgress = action.payload;
     },
-    resetUploadProgress: (state) => {
+    resetUploadProgress: state => {
       state.uploadProgress = 0;
     },
     updateGroupLastActivity: (state, action: PayloadAction<string>) => {
@@ -335,10 +335,10 @@ const videosSlice = createSlice({
       // The actual implementation is in the groupsSlice
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Upload video
     builder
-      .addCase(uploadVideo.pending, (state) => {
+      .addCase(uploadVideo.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -355,10 +355,10 @@ const videosSlice = createSlice({
         state.error = action.payload as string;
         state.uploadProgress = 0;
       });
-    
+
     // Fetch videos for group
     builder
-      .addCase(fetchVideosForGroup.pending, (state) => {
+      .addCase(fetchVideosForGroup.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -371,10 +371,10 @@ const videosSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Fetch feed videos
     builder
-      .addCase(fetchFeedVideos.pending, (state) => {
+      .addCase(fetchFeedVideos.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -387,29 +387,29 @@ const videosSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Fetch video by ID
     builder
-      .addCase(fetchVideoById.pending, (state) => {
+      .addCase(fetchVideoById.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
       .addCase(fetchVideoById.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.currentVideo = action.payload;
-        
+
         // Update the video in the videos array if it exists
         const videoIndex = state.videos.findIndex(video => video.id === action.payload.id);
         if (videoIndex !== -1) {
           state.videos[videoIndex] = action.payload;
         }
-        
+
         // Update the video in the feedVideos array if it exists
         const feedVideoIndex = state.feedVideos.findIndex(video => video.id === action.payload.id);
         if (feedVideoIndex !== -1) {
           state.feedVideos[feedVideoIndex] = action.payload;
         }
-        
+
         state.error = null;
       })
       .addCase(fetchVideoById.rejected, (state, action) => {
@@ -419,12 +419,12 @@ const videosSlice = createSlice({
   },
 });
 
-export const { 
-  setCurrentVideo, 
-  clearVideosError, 
-  setUploadProgress, 
+export const {
+  setCurrentVideo,
+  clearVideosError,
+  setUploadProgress,
   resetUploadProgress,
-  updateGroupLastActivity
+  updateGroupLastActivity,
 } = videosSlice.actions;
 
 export default videosSlice.reducer;

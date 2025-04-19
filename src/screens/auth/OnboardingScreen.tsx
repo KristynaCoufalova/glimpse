@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
-  Dimensions, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  Dimensions,
   TouchableOpacity,
   Image,
-  Animated
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -38,7 +38,8 @@ const slides: OnboardingSlide[] = [
   {
     id: '2',
     title: 'Private Groups',
-    description: 'Create private groups with friends, family, or partners to share your moments securely.',
+    description:
+      'Create private groups with friends, family, or partners to share your moments securely.',
     image: 'groups',
   },
   {
@@ -71,7 +72,21 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
       <View style={styles.slide}>
         <View style={styles.imageContainer}>
           {/* Placeholder for image */}
-          <View style={[styles.imagePlaceholder, { backgroundColor: item.id === '1' ? '#4ECDC4' : item.id === '2' ? '#FF6B6B' : item.id === '3' ? '#F7B801' : '#1A535C' }]}>
+          <View
+            style={[
+              styles.imagePlaceholder,
+              {
+                backgroundColor:
+                  item.id === '1'
+                    ? '#4ECDC4'
+                    : item.id === '2'
+                      ? '#FF6B6B'
+                      : item.id === '3'
+                        ? '#F7B801'
+                        : '#1A535C',
+              },
+            ]}
+          >
             <Text style={styles.imagePlaceholderText}>{item.image}</Text>
           </View>
         </View>
@@ -85,7 +100,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
 
   const renderDots = () => {
     const dotPosition = Animated.divide(scrollX, width);
-    
+
     return (
       <View style={styles.dotsContainer}>
         {slides.map((_, i) => {
@@ -102,13 +117,7 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
           });
 
           return (
-            <Animated.View 
-              key={i.toString()} 
-              style={[
-                styles.dot, 
-                { opacity, width: dotWidth }
-              ]} 
-            />
+            <Animated.View key={i.toString()} style={[styles.dot, { opacity, width: dotWidth }]} />
           );
         })}
       </View>
@@ -131,39 +140,32 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
-      
+
       <FlatList
         ref={flatListRef}
         data={slides}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         bounces={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false }
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], {
+          useNativeDriver: false,
+        })}
         onViewableItemsChanged={viewableItemsChanged}
         viewabilityConfig={viewConfig}
         scrollEventThrottle={32}
       />
-      
+
       {renderDots()}
-      
+
       <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleGetStarted}
-        >
+        <TouchableOpacity style={styles.skipButton} onPress={handleGetStarted}>
           <Text style={styles.skipButtonText}>Skip</Text>
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.nextButton}
-          onPress={handleNext}
-        >
+
+        <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
           <Text style={styles.nextButtonText}>
             {currentIndex === slides.length - 1 ? 'Get Started' : 'Next'}
           </Text>
@@ -174,89 +176,89 @@ const OnboardingScreen: React.FC<OnboardingScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  buttonContainer: {
+    bottom: 80,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    position: 'absolute',
+    width: '100%',
+  },
   container: {
-    flex: 1,
-    backgroundColor: '#fff',
     alignItems: 'center',
+    backgroundColor: '#fff',
+    flex: 1,
     justifyContent: 'center',
   },
-  slide: {
-    width,
-    height,
-    alignItems: 'center',
-    padding: 20,
+  description: {
+    color: '#666',
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
+  },
+  dot: {
+    backgroundColor: '#4ECDC4',
+    borderRadius: 5,
+    height: 10,
+    marginHorizontal: 5,
+  },
+  dotsContainer: {
+    bottom: 150,
+    flexDirection: 'row',
+    position: 'absolute',
   },
   imageContainer: {
+    alignItems: 'center',
     flex: 0.6,
     justifyContent: 'center',
-    alignItems: 'center',
   },
   imagePlaceholder: {
-    width: width * 0.8,
-    height: width * 0.8,
-    borderRadius: 20,
-    justifyContent: 'center',
     alignItems: 'center',
+    borderRadius: 20,
+    height: width * 0.8,
+    justifyContent: 'center',
+    width: width * 0.8,
   },
   imagePlaceholderText: {
     color: 'white',
     fontSize: 24,
     fontWeight: 'bold',
   },
-  textContainer: {
-    flex: 0.4,
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  description: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  dotsContainer: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: 150,
-  },
-  dot: {
-    height: 10,
-    borderRadius: 5,
+  nextButton: {
     backgroundColor: '#4ECDC4',
-    marginHorizontal: 5,
+    borderRadius: 8,
+    paddingHorizontal: 30,
+    paddingVertical: 15,
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    position: 'absolute',
-    bottom: 80,
-    width: '100%',
-    paddingHorizontal: 20,
-    justifyContent: 'space-between',
+  nextButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   skipButton: {
     padding: 15,
   },
   skipButtonText: {
-    fontSize: 16,
     color: '#666',
-  },
-  nextButton: {
-    backgroundColor: '#4ECDC4',
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-  },
-  nextButtonText: {
     fontSize: 16,
-    color: '#fff',
+  },
+  slide: {
+    alignItems: 'center',
+    height,
+    padding: 20,
+    width,
+  },
+  textContainer: {
+    alignItems: 'center',
+    flex: 0.4,
+    paddingHorizontal: 20,
+  },
+  title: {
+    color: '#333',
+    fontSize: 28,
     fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
   },
 });
 

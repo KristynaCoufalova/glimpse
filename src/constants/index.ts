@@ -5,7 +5,7 @@ export const COLORS = {
   // Primary colors
   primary: '#4ECDC4', // Soft teal
   secondary: '#FF6B6B', // Warm coral
-  
+
   // Neutral colors
   background: '#FFFFFF',
   card: '#F8F8F8',
@@ -13,13 +13,13 @@ export const COLORS = {
   textLight: '#666666',
   textLighter: '#999999',
   border: '#DDDDDD',
-  
+
   // Status colors
   success: '#4CAF50',
   warning: '#FFC107',
   error: '#FF5252',
   info: '#2196F3',
-  
+
   // Utility colors
   transparent: 'transparent',
   overlay: 'rgba(0, 0, 0, 0.5)',

@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // User profiles - users can read/write only their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Groups - members can read, only admins can update group details
+    match /groups/{groupId} {
+      allow read: if request.auth != null &&
+                  exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+                  
+      allow write: if request.auth != null &&
+                   exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+                   get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Group members - nested collection for member management
+    match /groups/{groupId}/members/{memberId} {
+      // Members can see who else is in their group
+      allow read: if request.auth != null && 
+                  exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+      
+      // Only group admins can add/remove members
+      allow write: if request.auth != null && 
+                   exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+                   get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Videos - users can see videos from their groups, create their own
+    match /videos/{videoId} {
+      allow read: if request.auth != null && 
+                  request.resource.data.groupIds.hasAny(get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groupIds);
+      
+      // Users can only upload videos as themselves
+      allow create: if request.auth != null && request.resource.data.creator == request.auth.uid;
+      
+      // Only video creator can update or delete their videos
+      allow update, delete: if request.auth != null && resource.data.creator == request.auth.uid;
+    }
+    
+    // Reactions (comments, likes) - members of the group can interact
+    match /reactions/{reactionId} {
+      // Can read reactions to videos in groups they belong to
+      allow read: if request.auth != null && 
+                  exists(/databases/$(database)/documents/groups/$(getVideoGroup(resource.data.videoId))/members/$(request.auth.uid));
+      
+      // Can create reactions if they're in the group
+      allow create: if request.auth != null && 
+                    request.resource.data.userId == request.auth.uid &&
+                    exists(/databases/$(database)/documents/groups/$(getVideoGroup(request.resource.data.videoId))/members/$(request.auth.uid));
+      
+      // Can only modify or delete their own reactions
+      allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // Helper function to get a video's group
+    function getVideoGroup(videoId) {
+      return get(/databases/$(database)/documents/videos/$(videoId)).data.groupIds[0];
+    }
+  }
+}

@@ -1,17 +1,17 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where, 
-  updateDoc, 
-  arrayUnion, 
+import {
+  collection,
+  doc,
+  setDoc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+  updateDoc,
+  arrayUnion,
   Timestamp,
   serverTimestamp,
-  FieldValue
+  FieldValue,
 } from 'firebase/firestore';
 import { firestore } from '../../services/firebase/config';
 
@@ -61,7 +61,7 @@ export const createGroup = createAsyncThunk(
       // Create a new group document
       const groupRef = doc(collection(firestore, 'groups'));
       const now = serverTimestamp();
-      
+
       const newGroup: Omit<Group, 'id'> = {
         name: data.name,
         description: data.description,
@@ -77,13 +77,13 @@ export const createGroup = createAsyncThunk(
           },
         },
       };
-      
+
       await setDoc(groupRef, newGroup);
-      
+
       // If invite emails are provided, create invitations
       if (data.inviteEmails && data.inviteEmails.length > 0) {
         const invitesCollection = collection(firestore, 'invites');
-        
+
         for (const email of data.inviteEmails) {
           const inviteRef = doc(invitesCollection);
           await setDoc(inviteRef, {
@@ -95,11 +95,11 @@ export const createGroup = createAsyncThunk(
           });
         }
       }
-      
+
       // Get the created group with its ID
       const groupSnapshot = await getDoc(groupRef);
       const groupData = groupSnapshot.data() as Omit<Group, 'id'>;
-      
+
       return {
         id: groupRef.id,
         ...groupData,
@@ -122,17 +122,17 @@ export const fetchUserGroups = createAsyncThunk(
         collection(firestore, 'groups'),
         where(`members.${userId}.id`, '==', userId)
       );
-      
+
       const groupsSnapshot = await getDocs(groupsQuery);
       const groups: Group[] = [];
-      
-      groupsSnapshot.forEach((doc) => {
+
+      groupsSnapshot.forEach(doc => {
         groups.push({
           id: doc.id,
           ...doc.data(),
         } as Group);
       });
-      
+
       return groups;
     } catch (error) {
       if (error instanceof Error) {
@@ -149,11 +149,11 @@ export const fetchGroupById = createAsyncThunk(
     try {
       const groupRef = doc(firestore, 'groups', groupId);
       const groupSnapshot = await getDoc(groupRef);
-      
+
       if (!groupSnapshot.exists()) {
         return rejectWithValue('Group not found');
       }
-      
+
       return {
         id: groupSnapshot.id,
         ...groupSnapshot.data(),
@@ -173,7 +173,7 @@ export const inviteMember = createAsyncThunk(
     try {
       const invitesCollection = collection(firestore, 'invites');
       const inviteRef = doc(invitesCollection);
-      
+
       await setDoc(inviteRef, {
         groupId: data.groupId,
         email: data.email.trim().toLowerCase(),
@@ -181,7 +181,7 @@ export const inviteMember = createAsyncThunk(
         createdAt: serverTimestamp(),
         status: 'pending',
       });
-      
+
       return { groupId: data.groupId, email: data.email };
     } catch (error) {
       if (error instanceof Error) {
@@ -208,26 +208,26 @@ const groupsSlice = createSlice({
     setCurrentGroup: (state, action: PayloadAction<Group | null>) => {
       state.currentGroup = action.payload;
     },
-    clearGroupsError: (state) => {
+    clearGroupsError: state => {
       state.error = null;
     },
     updateGroupLastActivity: (state, action: PayloadAction<string>) => {
       const groupId = action.payload;
       const groupIndex = state.groups.findIndex(group => group.id === groupId);
-      
+
       if (groupIndex !== -1) {
         state.groups[groupIndex].lastActivity = Timestamp.now();
       }
-      
+
       if (state.currentGroup && state.currentGroup.id === groupId) {
         state.currentGroup.lastActivity = Timestamp.now();
       }
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Create group
     builder
-      .addCase(createGroup.pending, (state) => {
+      .addCase(createGroup.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -241,10 +241,10 @@ const groupsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Fetch user groups
     builder
-      .addCase(fetchUserGroups.pending, (state) => {
+      .addCase(fetchUserGroups.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -257,17 +257,17 @@ const groupsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Fetch group by ID
     builder
-      .addCase(fetchGroupById.pending, (state) => {
+      .addCase(fetchGroupById.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
       .addCase(fetchGroupById.fulfilled, (state, action) => {
         state.status = 'succeeded';
         state.currentGroup = action.payload;
-        
+
         // Update the group in the groups array if it exists
         const groupIndex = state.groups.findIndex(group => group.id === action.payload.id);
         if (groupIndex !== -1) {
@@ -275,21 +275,21 @@ const groupsSlice = createSlice({
         } else {
           state.groups.push(action.payload);
         }
-        
+
         state.error = null;
       })
       .addCase(fetchGroupById.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Invite member
     builder
-      .addCase(inviteMember.pending, (state) => {
+      .addCase(inviteMember.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
-      .addCase(inviteMember.fulfilled, (state) => {
+      .addCase(inviteMember.fulfilled, state => {
         state.status = 'succeeded';
         state.error = null;
       })

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  FlatList, 
-  TouchableOpacity, 
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  TouchableOpacity,
   SafeAreaView,
   Image,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -99,43 +99,38 @@ const GroupsScreen: React.FC = () => {
 
   const renderGroupItem = ({ item }: { item: Group }) => {
     return (
-      <TouchableOpacity 
-        style={styles.groupCard}
-        onPress={() => handleGroupPress(item.id)}
-      >
+      <TouchableOpacity style={styles.groupCard} onPress={() => handleGroupPress(item.id)}>
         {/* Group cover photo (placeholder) */}
         <View style={styles.coverPhoto}>
           <Text style={styles.coverPhotoText}>{item.name}</Text>
         </View>
-        
+
         <View style={styles.groupInfo}>
           <Text style={styles.groupName}>{item.name}</Text>
           <Text style={styles.groupDescription}>{item.description}</Text>
-          
+
           {/* Member avatars */}
           <View style={styles.membersContainer}>
             <Text style={styles.membersTitle}>Members</Text>
             <View style={styles.avatarRow}>
               {item.members.slice(0, 4).map((member, index) => (
-                <View 
-                  key={member.id} 
+                <View
+                  key={member.id}
                   style={[
                     styles.memberAvatar,
-                    { zIndex: 5 - index, marginLeft: index > 0 ? -10 : 0 }
+                    { zIndex: 5 - index, marginLeft: index > 0 ? -10 : 0 },
                   ]}
                 />
               ))}
-              
+
               {item.members.length > 4 && (
                 <View style={[styles.memberAvatar, styles.memberAvatarMore]}>
-                  <Text style={styles.memberAvatarMoreText}>
-                    +{item.members.length - 4}
-                  </Text>
+                  <Text style={styles.memberAvatarMoreText}>+{item.members.length - 4}</Text>
                 </View>
               )}
             </View>
           </View>
-          
+
           {/* Last activity */}
           <View style={styles.activityContainer}>
             <Ionicons name="time-outline" size={16} color="#666" />
@@ -151,18 +146,15 @@ const GroupsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="dark" />
-      
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Groups</Text>
-        <TouchableOpacity 
-          style={styles.createButton}
-          onPress={handleCreateGroup}
-        >
+        <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
           <Ionicons name="add" size={24} color="#fff" />
           <Text style={styles.createButtonText}>Create</Text>
         </TouchableOpacity>
       </View>
-      
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ECDC4" />
@@ -181,10 +173,7 @@ const GroupsScreen: React.FC = () => {
               <Text style={styles.emptyDescription}>
                 Create a group to start sharing moments with your friends, family, or colleagues.
               </Text>
-              <TouchableOpacity 
-                style={styles.emptyCreateButton}
-                onPress={handleCreateGroup}
-              >
+              <TouchableOpacity style={styles.emptyCreateButton} onPress={handleCreateGroup}>
                 <Text style={styles.emptyCreateButtonText}>Create a Group</Text>
               </TouchableOpacity>
             </View>
@@ -196,150 +185,150 @@ const GroupsScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  activityContainer: {
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  createButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#4ECDC4',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 20,
   },
-  createButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  activityText: {
+    color: '#666',
+    fontSize: 12,
     marginLeft: 5,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  avatarRow: {
     alignItems: 'center',
+    flexDirection: 'row',
   },
-  groupsList: {
-    padding: 15,
-  },
-  groupCard: {
+  container: {
     backgroundColor: '#fff',
-    borderRadius: 12,
-    marginBottom: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: 'hidden',
+    flex: 1,
   },
   coverPhoto: {
-    height: 120,
-    backgroundColor: '#4ECDC4',
-    justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#4ECDC4',
+    height: 120,
+    justifyContent: 'center',
   },
   coverPhotoText: {
     color: '#fff',
     fontSize: 24,
     fontWeight: 'bold',
   },
-  groupInfo: {
-    padding: 15,
-  },
-  groupName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  groupDescription: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 15,
-  },
-  membersContainer: {
-    marginBottom: 15,
-  },
-  membersTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 8,
-  },
-  avatarRow: {
+  createButton: {
+    alignItems: 'center',
+    backgroundColor: '#4ECDC4',
+    borderRadius: 20,
     flexDirection: 'row',
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
-  memberAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#ddd',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  memberAvatarMore: {
-    backgroundColor: '#f0f0f0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  memberAvatarMoreText: {
-    fontSize: 12,
-    color: '#666',
+  createButtonText: {
+    color: '#fff',
     fontWeight: 'bold',
-  },
-  activityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  activityText: {
-    fontSize: 12,
-    color: '#666',
     marginLeft: 5,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 30,
     marginTop: 50,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  emptyDescription: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 30,
+    padding: 30,
   },
   emptyCreateButton: {
     backgroundColor: '#4ECDC4',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   emptyCreateButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  emptyDescription: {
+    color: '#666',
+    fontSize: 16,
+    marginBottom: 30,
+    textAlign: 'center',
+  },
+  emptyTitle: {
+    color: '#333',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    marginTop: 20,
+  },
+  groupCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    elevation: 3,
+    marginBottom: 20,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  groupDescription: {
+    color: '#666',
+    fontSize: 14,
+    marginBottom: 15,
+  },
+  groupInfo: {
+    padding: 15,
+  },
+  groupName: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  groupsList: {
+    padding: 15,
+  },
+  header: {
+    alignItems: 'center',
+    borderBottomColor: '#f0f0f0',
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+  },
+  headerTitle: {
+    color: '#333',
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  memberAvatar: {
+    backgroundColor: '#ddd',
+    borderColor: '#fff',
+    borderRadius: 18,
+    borderWidth: 2,
+    height: 36,
+    width: 36,
+  },
+  memberAvatarMore: {
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+  },
+  memberAvatarMoreText: {
+    color: '#666',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  membersContainer: {
+    marginBottom: 15,
+  },
+  membersTitle: {
+    color: '#333',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 8,
   },
 });
 

@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { 
-  StyleSheet, 
-  View, 
-  FlatList, 
-  Dimensions, 
+import {
+  StyleSheet,
+  View,
+  FlatList,
+  Dimensions,
   TouchableOpacity,
   Text,
   ActivityIndicator,
-  SafeAreaView
+  SafeAreaView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -115,9 +115,8 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
   const flatListRef = useRef<FlatList>(null);
 
   // Filter videos based on selected group
-  const filteredVideos = selectedGroup === 'all' 
-    ? videos 
-    : videos.filter(video => video.groupId === selectedGroup);
+  const filteredVideos =
+    selectedGroup === 'all' ? videos : videos.filter(video => video.groupId === selectedGroup);
 
   const handleViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -126,7 +125,7 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
   }).current;
 
   const viewabilityConfig = useRef({
-    itemVisiblePercentThreshold: 50
+    itemVisiblePercentThreshold: 50,
   }).current;
 
   const renderVideo = ({ item, index }: { item: VideoItem; index: number }) => {
@@ -138,7 +137,7 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
           <Text style={styles.videoPlaceholderCaption}>{item.caption}</Text>
           <Text style={styles.videoPlaceholderGroup}>Group: {item.groupName}</Text>
         </View>
-        
+
         {/* Video controls */}
         <View style={styles.videoControls}>
           <View style={styles.creatorInfo}>
@@ -146,28 +145,23 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
             <Text style={styles.creatorName}>{item.creator.name}</Text>
             <Text style={styles.videoCaption}>{item.caption}</Text>
           </View>
-          
+
           <View style={styles.interactionControls}>
             <TouchableOpacity style={styles.interactionButton}>
               <Ionicons name="heart-outline" size={28} color="white" />
               <Text style={styles.interactionCount}>{item.likes}</Text>
             </TouchableOpacity>
-            
+
             <TouchableOpacity style={styles.interactionButton}>
               <Ionicons name="chatbubble-outline" size={28} color="white" />
               <Text style={styles.interactionCount}>{item.comments}</Text>
             </TouchableOpacity>
           </View>
         </View>
-        
+
         {/* Progress indicator */}
         <View style={styles.progressContainer}>
-          <View 
-            style={[
-              styles.progressBar, 
-              { width: `${(index === currentIndex ? 100 : 0)}%` }
-            ]} 
-          />
+          <View style={[styles.progressBar, { width: `${index === currentIndex ? 100 : 0}%` }]} />
         </View>
       </View>
     );
@@ -179,17 +173,17 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
         <FlatList
           data={groupFilters}
           renderItem={({ item }) => (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.groupFilterItem,
-                selectedGroup === item.id && styles.groupFilterItemSelected
+                selectedGroup === item.id && styles.groupFilterItemSelected,
               ]}
               onPress={() => setSelectedGroup(item.id)}
             >
-              <Text 
+              <Text
                 style={[
                   styles.groupFilterText,
-                  selectedGroup === item.id && styles.groupFilterTextSelected
+                  selectedGroup === item.id && styles.groupFilterTextSelected,
                 ]}
               >
                 {item.name}
@@ -208,10 +202,10 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      
+
       {/* Group filters at top */}
       {renderGroupFilter()}
-      
+
       {loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ECDC4" />
@@ -240,16 +234,14 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyText}>No videos found</Text>
-              <Text style={styles.emptySubtext}>
-                Videos from your groups will appear here
-              </Text>
+              <Text style={styles.emptySubtext}>Videos from your groups will appear here</Text>
             </View>
           }
         />
       )}
-      
+
       {/* Record button */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.recordButton}
         onPress={() => navigation.navigate('Recording' as any)}
       >
@@ -261,118 +253,64 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#000',
-  },
-  loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
-  videoContainer: {
-    width,
-    height,
-    backgroundColor: '#111',
-    position: 'relative',
-  },
-  videoPlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#222',
-  },
-  videoPlaceholderText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
+  creatorAvatar: {
+    backgroundColor: '#4ECDC4',
+    borderRadius: 20,
+    height: 40,
     marginBottom: 10,
-  },
-  videoPlaceholderCaption: {
-    color: 'white',
-    fontSize: 16,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    marginBottom: 10,
-  },
-  videoPlaceholderGroup: {
-    color: '#4ECDC4',
-    fontSize: 14,
-  },
-  videoControls: {
-    position: 'absolute',
-    bottom: 80,
-    left: 0,
-    right: 0,
-    padding: 20,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    width: 40,
   },
   creatorInfo: {
     flex: 1,
     marginRight: 20,
   },
-  creatorAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4ECDC4',
-    marginBottom: 10,
-  },
   creatorName: {
     color: 'white',
-    fontWeight: 'bold',
     fontSize: 16,
+    fontWeight: 'bold',
     marginBottom: 5,
   },
-  videoCaption: {
-    color: 'white',
-    fontSize: 14,
-  },
-  interactionControls: {
+  emptyContainer: {
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    flex: 1,
+    height,
+    justifyContent: 'center',
+    padding: 20,
   },
-  interactionButton: {
-    alignItems: 'center',
-    marginBottom: 15,
+  emptySubtext: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 16,
+    textAlign: 'center',
   },
-  interactionCount: {
+  emptyText: {
     color: 'white',
-    marginTop: 5,
-  },
-  progressContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: '#4ECDC4',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
   groupFilterContainer: {
-    position: 'absolute',
-    top: 0,
     left: 0,
-    right: 0,
-    zIndex: 10,
     paddingTop: 10,
-  },
-  groupFilterList: {
-    paddingHorizontal: 10,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 10,
   },
   groupFilterItem: {
-    paddingHorizontal: 15,
-    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     borderRadius: 20,
     marginHorizontal: 5,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
   },
   groupFilterItemSelected: {
     backgroundColor: '#4ECDC4',
+  },
+  groupFilterList: {
+    paddingHorizontal: 10,
   },
   groupFilterText: {
     color: 'white',
@@ -381,29 +319,83 @@ const styles = StyleSheet.create({
   groupFilterTextSelected: {
     fontWeight: 'bold',
   },
-  emptyContainer: {
-    flex: 1,
-    height,
-    justifyContent: 'center',
+  interactionButton: {
     alignItems: 'center',
-    padding: 20,
+    marginBottom: 15,
   },
-  emptyText: {
+  interactionControls: {
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  interactionCount: {
     color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    marginTop: 5,
   },
-  emptySubtext: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: 16,
-    textAlign: 'center',
+  loadingContainer: {
+    alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
+  },
+  progressBar: {
+    backgroundColor: '#4ECDC4',
+    height: '100%',
+  },
+  progressContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    bottom: 0,
+    height: 3,
+    left: 0,
+    position: 'absolute',
+    right: 0,
   },
   recordButton: {
-    position: 'absolute',
-    bottom: 20,
     alignSelf: 'center',
+    bottom: 20,
+    position: 'absolute',
     zIndex: 10,
+  },
+  videoCaption: {
+    color: 'white',
+    fontSize: 14,
+  },
+  videoContainer: {
+    backgroundColor: '#111',
+    height,
+    position: 'relative',
+    width,
+  },
+  videoControls: {
+    bottom: 80,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    left: 0,
+    padding: 20,
+    position: 'absolute',
+    right: 0,
+  },
+  videoPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: '#222',
+    height: '100%',
+    justifyContent: 'center',
+    width: '100%',
+  },
+  videoPlaceholderCaption: {
+    color: 'white',
+    fontSize: 16,
+    marginBottom: 10,
+    paddingHorizontal: 40,
+    textAlign: 'center',
+  },
+  videoPlaceholderGroup: {
+    color: '#4ECDC4',
+    fontSize: 14,
+  },
+  videoPlaceholderText: {
+    color: 'white',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 });
 

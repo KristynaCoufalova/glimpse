@@ -1,10 +1,10 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { 
-  createUserWithEmailAndPassword, 
+import {
+  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
-  User as FirebaseUser
+  User as FirebaseUser,
 } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { auth, firestore } from '../../services/firebase/config';
@@ -56,12 +56,12 @@ export const signup = createAsyncThunk(
         credentials.email,
         credentials.password
       );
-      
+
       // Update profile with display name
       await updateProfile(userCredential.user, {
         displayName: credentials.displayName,
       });
-      
+
       // Create user document in Firestore
       await setDoc(doc(firestore, 'users', userCredential.user.uid), {
         displayName: credentials.displayName,
@@ -71,7 +71,7 @@ export const signup = createAsyncThunk(
         createdAt: new Date(),
         lastActive: new Date(),
       });
-      
+
       return convertFirebaseUser(userCredential.user);
     } catch (error) {
       if (error instanceof Error) {
@@ -91,7 +91,7 @@ export const login = createAsyncThunk(
         credentials.email,
         credentials.password
       );
-      
+
       return convertFirebaseUser(userCredential.user);
     } catch (error) {
       if (error instanceof Error) {
@@ -102,20 +102,17 @@ export const login = createAsyncThunk(
   }
 );
 
-export const signOut = createAsyncThunk(
-  'auth/signOut',
-  async (_, { rejectWithValue }) => {
-    try {
-      await firebaseSignOut(auth);
-      return null;
-    } catch (error) {
-      if (error instanceof Error) {
-        return rejectWithValue(error.message);
-      }
-      return rejectWithValue('An unknown error occurred');
+export const signOut = createAsyncThunk('auth/signOut', async (_, { rejectWithValue }) => {
+  try {
+    await firebaseSignOut(auth);
+    return null;
+  } catch (error) {
+    if (error instanceof Error) {
+      return rejectWithValue(error.message);
     }
+    return rejectWithValue('An unknown error occurred');
   }
-);
+});
 
 // Initial state
 const initialState: AuthState = {
@@ -134,14 +131,14 @@ const authSlice = createSlice({
       state.status = 'succeeded';
       state.error = null;
     },
-    clearError: (state) => {
+    clearError: state => {
       state.error = null;
     },
   },
-  extraReducers: (builder) => {
+  extraReducers: builder => {
     // Signup
     builder
-      .addCase(signup.pending, (state) => {
+      .addCase(signup.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -154,10 +151,10 @@ const authSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Login
     builder
-      .addCase(login.pending, (state) => {
+      .addCase(login.pending, state => {
         state.status = 'loading';
         state.error = null;
       })
@@ -170,13 +167,13 @@ const authSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-    
+
     // Sign out
     builder
-      .addCase(signOut.pending, (state) => {
+      .addCase(signOut.pending, state => {
         state.status = 'loading';
       })
-      .addCase(signOut.fulfilled, (state) => {
+      .addCase(signOut.fulfilled, state => {
         state.status = 'idle';
         state.user = null;
         state.error = null;

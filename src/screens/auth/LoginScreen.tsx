@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { login } from '../../store/slices/authSlice';
+import { RootState } from '../../store';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
   Platform,
-  Image,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,38 +25,39 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
+
+  const dispatch = useDispatch();
+  const { status, error: authError } = useSelector((state: RootState) => state.auth);
+  const isLoading = status === 'loading';
+
+  // Update local error state when Redux auth error changes
+  useEffect(() => {
+    if (authError) {
+      setLocalError(authError);
+    }
+  }, [authError]);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setError('Please fill in all fields');
+      setLocalError('Please fill in all fields');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setLocalError('');
 
     try {
-      // Firebase authentication will be implemented here
-      console.log('Login with:', email, password);
-      
-      // Simulate login delay
-      setTimeout(() => {
-        setLoading(false);
-        // Navigate to main app after successful login
-        // This will be handled by Redux auth state in the future
-      }, 1500);
+      // Dispatch login action to Redux
+      dispatch(login({ email, password }));
+      // Navigation will be handled by the Navigation component based on auth state
     } catch (err) {
-      setLoading(false);
-      setError('Failed to login. Please check your credentials.');
       console.error('Login error:', err);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <StatusBar style="dark" />
@@ -64,8 +67,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
       </View>
 
       <View style={styles.formContainer}>
-        {error ? <Text style={styles.errorText}>{error}</Text> : null}
-        
+        {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
+
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -74,7 +77,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           autoCapitalize="none"
           keyboardType="email-address"
         />
-        
+
         <TextInput
           style={styles.input}
           placeholder="Password"
@@ -82,25 +85,18 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
           onChangeText={setPassword}
           secureTextEntry
         />
-        
-        <TouchableOpacity 
-          style={styles.loginButton} 
-          onPress={handleLogin}
-          disabled={loading}
-        >
-          {loading ? (
+
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={isLoading}>
+          {isLoading ? (
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={styles.loginButtonText}>Log In</Text>
           )}
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.signupLink}
-          onPress={() => navigation.navigate('Signup')}
-        >
+
+        <TouchableOpacity style={styles.signupLink} onPress={() => navigation.navigate('Signup')}>
           <Text style={styles.signupText}>
-            Don't have an account? <Text style={styles.signupTextBold}>Sign Up</Text>
+            Don&apos;t have an account? <Text style={styles.signupTextBold}>Sign Up</Text>
           </Text>
         </TouchableOpacity>
       </View>
@@ -110,24 +106,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#fff',
+    flex: 1,
     padding: 20,
   },
-  logoContainer: {
-    alignItems: 'center',
-    marginTop: 80,
-    marginBottom: 50,
-  },
-  logoText: {
-    fontSize: 42,
-    fontWeight: 'bold',
-    color: '#4ECDC4', // Soft teal primary color
-    marginBottom: 10,
-  },
-  tagline: {
-    fontSize: 16,
-    color: '#666',
+  errorText: {
+    color: '#FF6B6B', // Warm coral accent color
+    marginBottom: 15,
     textAlign: 'center',
   },
   formContainer: {
@@ -136,9 +121,9 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
     fontSize: 16,
+    marginBottom: 15,
+    padding: 15,
   },
   loginButton: {
     backgroundColor: '#4ECDC4', // Soft teal primary color
@@ -152,22 +137,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  errorText: {
-    color: '#FF6B6B', // Warm coral accent color
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  signupLink: {
-    marginTop: 20,
+  logoContainer: {
     alignItems: 'center',
+    marginBottom: 50,
+    marginTop: 80,
   },
-  signupText: {
-    fontSize: 16,
-    color: '#666',
-  },
-  signupTextBold: {
+  logoText: {
+    fontSize: 42,
     fontWeight: 'bold',
     color: '#4ECDC4', // Soft teal primary color
+    marginBottom: 10,
+  },
+  signupLink: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  signupText: {
+    color: '#666',
+    fontSize: 16,
+  },
+  signupTextBold: {
+    color: '#4ECDC4',
+    fontWeight: 'bold', // Soft teal primary color
+  },
+  tagline: {
+    color: '#666',
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

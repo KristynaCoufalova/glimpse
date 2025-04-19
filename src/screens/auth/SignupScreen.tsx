@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  KeyboardAvoidingView, 
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { signup } from '../../store/slices/authSlice';
+import { RootState } from '../../store';
+import {
+  StyleSheet,
+  Text,
+  View,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -25,49 +28,56 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [localError, setLocalError] = useState('');
+
+  const dispatch = useDispatch();
+  const { status, error: authError } = useSelector((state: RootState) => state.auth);
+  const isLoading = status === 'loading';
+
+  // Update local error state when Redux auth error changes
+  useEffect(() => {
+    if (authError) {
+      setLocalError(authError);
+    }
+  }, [authError]);
 
   const handleSignup = async () => {
     // Basic validation
     if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields');
+      setLocalError('Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setLocalError('Passwords do not match');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+      setLocalError('Password must be at least 6 characters');
       return;
     }
 
-    setLoading(true);
-    setError('');
+    setLocalError('');
 
     try {
-      // Firebase authentication will be implemented here
-      console.log('Signup with:', name, email, password);
-      
-      // Simulate signup delay
-      setTimeout(() => {
-        setLoading(false);
-        // Navigate to main app after successful signup
-        // This will be handled by Redux auth state in the future
-      }, 1500);
+      // Dispatch signup action to Redux
+      dispatch(
+        signup({
+          email,
+          password,
+          displayName: name,
+        })
+      );
+      // Navigation will be handled by the Navigation component based on auth state
     } catch (err) {
-      setLoading(false);
-      setError('Failed to create account. Please try again.');
       console.error('Signup error:', err);
     }
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container} 
+    <KeyboardAvoidingView
+      style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
@@ -75,12 +85,14 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.headerContainer}>
           <Text style={styles.headerText}>Create Account</Text>
-          <Text style={styles.subHeaderText}>Join Glimpse to share moments with people who matter</Text>
+          <Text style={styles.subHeaderText}>
+            Join Glimpse to share moments with people who matter
+          </Text>
         </View>
 
         <View style={styles.formContainer}>
-          {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          
+          {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
+
           <TextInput
             style={styles.input}
             placeholder="Full Name"
@@ -88,7 +100,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             onChangeText={setName}
             autoCapitalize="words"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -97,7 +109,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Password"
@@ -105,7 +117,7 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             onChangeText={setPassword}
             secureTextEntry
           />
-          
+
           <TextInput
             style={styles.input}
             placeholder="Confirm Password"
@@ -113,23 +125,16 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
             onChangeText={setConfirmPassword}
             secureTextEntry
           />
-          
-          <TouchableOpacity 
-            style={styles.signupButton} 
-            onPress={handleSignup}
-            disabled={loading}
-          >
-            {loading ? (
+
+          <TouchableOpacity style={styles.signupButton} onPress={handleSignup} disabled={isLoading}>
+            {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.signupButtonText}>Create Account</Text>
             )}
           </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.loginLink}
-            onPress={() => navigation.navigate('Login')}
-          >
+
+          <TouchableOpacity style={styles.loginLink} onPress={() => navigation.navigate('Login')}>
             <Text style={styles.loginText}>
               Already have an account? <Text style={styles.loginTextBold}>Log In</Text>
             </Text>
@@ -142,12 +147,16 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     backgroundColor: '#fff',
+    flex: 1,
   },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 60,
+  errorText: {
+    color: '#FF6B6B', // Warm coral accent color
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  formContainer: {
+    width: '100%',
   },
   headerContainer: {
     alignItems: 'center',
@@ -159,20 +168,28 @@ const styles = StyleSheet.create({
     color: '#4ECDC4', // Soft teal primary color
     marginBottom: 10,
   },
-  subHeaderText: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-  },
-  formContainer: {
-    width: '100%',
-  },
   input: {
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
     fontSize: 16,
+    marginBottom: 15,
+    padding: 15,
+  },
+  loginLink: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  loginText: {
+    color: '#666',
+    fontSize: 16,
+  },
+  loginTextBold: {
+    color: '#4ECDC4',
+    fontWeight: 'bold', // Soft teal primary color
+  },
+  scrollContent: {
+    padding: 20,
+    paddingTop: 60,
   },
   signupButton: {
     backgroundColor: '#4ECDC4', // Soft teal primary color
@@ -186,22 +203,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  errorText: {
-    color: '#FF6B6B', // Warm coral accent color
-    marginBottom: 15,
-    textAlign: 'center',
-  },
-  loginLink: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  loginText: {
-    fontSize: 16,
+  subHeaderText: {
     color: '#666',
-  },
-  loginTextBold: {
-    fontWeight: 'bold',
-    color: '#4ECDC4', // Soft teal primary color
+    fontSize: 16,
+    textAlign: 'center',
   },
 });
 

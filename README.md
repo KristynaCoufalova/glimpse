@@ -18,17 +18,20 @@ Glimpse allows users to share short video updates (up to 90 seconds) within priv
 ## ✨ Key Features
 
 ### User Authentication & Profiles
+
 - Email signup and login
 - Simple profile with name, photo, and timezone
 - User settings and preferences
 
 ### Group Management
+
 - Create named private groups (e.g., "Family", "College Friends")
 - Invite members via link, email, or phone number
 - Group customization (cover photo, description)
 - Group membership management
 
 ### Vertical Video Feed
+
 - TikTok/Reels-style full-screen vertical feed
 - Swipe up/down to navigate between videos
 - Group filtering at top of feed
@@ -36,6 +39,7 @@ Glimpse allows users to share short video updates (up to 90 seconds) within priv
 - Progress indicators showing position in feed
 
 ### Video Creation
+
 - In-app recording with front/back camera toggle
 - 90-second maximum recording length
 - Basic enhancement features (lighting adjustment)
@@ -43,17 +47,20 @@ Glimpse allows users to share short video updates (up to 90 seconds) within priv
 - Upload progress and background uploading
 
 ### Engagement Features
+
 - Like/heart reactions
 - Comment section
 - Short video replies
 - Notifications for new videos and engagement
 
 ### Daily Prompts
+
 - Optional daily questions/prompts (e.g., "Share something that made you smile today")
 - Highlight prompted videos in feed
 - Prompt notification reminders
 
 ### Notifications
+
 - Push notifications for new videos from connections
 - Activity notifications (reactions, comments)
 - Daily prompt reminders
@@ -79,12 +86,14 @@ Glimpse allows users to share short video updates (up to 90 seconds) within priv
 ### Installation
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/yourusername/glimpse.git
    cd glimpse
    ```
 
 2. Install dependencies:
+
    ```bash
    npm install
    # or
@@ -94,6 +103,7 @@ Glimpse allows users to share short video updates (up to 90 seconds) within priv
 3. Create a Firebase project and add your configuration to `src/services/firebase/config.ts`.
 
 4. Start the development server:
+
    ```bash
    npm start
    # or

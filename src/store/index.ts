@@ -9,7 +9,7 @@ export const store = configureStore({
     groups: groupsReducer,
     videos: videosReducer,
   },
-  middleware: (getDefaultMiddleware) =>
+  middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
