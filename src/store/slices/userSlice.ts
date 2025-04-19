@@ -1,9 +1,10 @@
+// src/store/slices/userSlice.ts
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import { 
   updateProfile as updateFirebaseProfile,
   User as FirebaseUser 
 } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, firestore, storage } from '../../services/firebase/config';
 
@@ -14,6 +15,7 @@ export interface User {
   displayName: string | null;
   photoURL: string | null;
   timezone?: string;
+  birthday?: string | null;
 }
 
 interface UserState {
@@ -26,6 +28,7 @@ interface ProfileUpdateData {
   displayName?: string | null;
   photoURL?: string | null;
   timezone?: string;
+  birthday?: string | null;
 }
 
 // Helper to convert local image URI to blob
@@ -39,6 +42,38 @@ const uriToBlob = async (uri: string): Promise<Blob> => {
 };
 
 // Async thunk for updating profile
+// Fetch user profile from Firestore
+export const fetchUserProfile = createAsyncThunk(
+  'user/fetchUserProfile',
+  async (userId: string, { rejectWithValue }) => {
+    try {
+      const userRef = doc(firestore, 'users', userId);
+      const userSnapshot = await getDoc(userRef);
+      
+      if (!userSnapshot.exists()) {
+        return rejectWithValue('User profile not found');
+      }
+      
+      const userData = userSnapshot.data();
+      
+      return {
+        uid: userId,
+        email: userData.email,
+        displayName: userData.displayName,
+        photoURL: userData.photoURL,
+        timezone: userData.timezone,
+        birthday: userData.birthday,
+      } as User;
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An unknown error occurred');
+    }
+  }
+);
+
+// Update user profile
 export const updateProfile = createAsyncThunk(
   'user/updateProfile',
   async (profileData: ProfileUpdateData, { getState, rejectWithValue }) => {
@@ -71,12 +106,17 @@ export const updateProfile = createAsyncThunk(
         photoURL: photoURL || currentUser.photoURL,
       });
 
-      // Update Firestore user document
+      // Get current user data from Firestore to ensure we don't overwrite existing fields
       const userRef = doc(firestore, 'users', currentUser.uid);
+      const userSnapshot = await getDoc(userRef);
+      const existingUserData = userSnapshot.exists() ? userSnapshot.data() : {};
+
+      // Update Firestore user document with both auth fields and additional profile fields
       await updateDoc(userRef, {
         displayName: profileData.displayName || currentUser.displayName,
         photoURL: photoURL || currentUser.photoURL,
         ...(profileData.timezone && { timezone: profileData.timezone }),
+        ...(profileData.birthday !== undefined && { birthday: profileData.birthday }),
         updatedAt: new Date(),
       });
 
@@ -86,7 +126,8 @@ export const updateProfile = createAsyncThunk(
         email: currentUser.email,
         displayName: profileData.displayName || currentUser.displayName,
         photoURL: photoURL || currentUser.photoURL,
-        timezone: profileData.timezone,
+        timezone: profileData.timezone || existingUserData.timezone,
+        birthday: profileData.birthday !== undefined ? profileData.birthday : existingUserData.birthday,
       };
     } catch (error) {
       if (error instanceof Error) {
@@ -131,6 +172,22 @@ const userSlice = createSlice({
         state.error = null;
       })
       .addCase(updateProfile.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      });
+      
+    // Fetch user profile
+    builder
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        state.user = action.payload;
+        state.error = null;
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
         state.status = 'failed';
         state.error = action.payload as string;
       });

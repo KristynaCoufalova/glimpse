@@ -1,3 +1,4 @@
+// src/screens/profile/EditProfileScreen.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
@@ -23,6 +24,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../store';
 import { updateProfile } from '../../store/slices/userSlice';
 import { Header, Button } from '../../components/common';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 type EditProfileScreenNavigationProp = StackNavigationProp<RootStackParamList, 'EditProfile'>;
 
@@ -37,7 +39,17 @@ const EditProfileScreen: React.FC = () => {
   const [name, setName] = useState(user?.displayName || '');
   const [email, setEmail] = useState(user?.email || '');
   const [imageUri, setImageUri] = useState<string | null>(user?.photoURL || null);
+  const [birthday, setBirthday] = useState<Date | null>(user?.birthday ? new Date(user.birthday) : null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [timezone, setTimezone] = useState(user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
   const [loading, setLoading] = useState(false);
+  
+  // Set the detected timezone on component mount if not already set
+  useEffect(() => {
+    if (!user?.timezone) {
+      setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    }
+  }, [user?.timezone]);
   
   // Request permission for accessing photo library
   useEffect(() => {
@@ -115,6 +127,20 @@ const EditProfileScreen: React.FC = () => {
     );
   };
   
+  // Handle birthday date change
+  const onChangeBirthday = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setBirthday(selectedDate);
+    }
+  };
+  
+  // Format date for display
+  const formatBirthday = (date: Date | null) => {
+    if (!date) return 'Not set';
+    return date.toLocaleDateString();
+  };
+  
   // Handle save profile
   const handleSaveProfile = async () => {
     if (!name.trim()) {
@@ -125,30 +151,33 @@ const EditProfileScreen: React.FC = () => {
     setLoading(true);
     
     try {
-      // In a real app, this would update Firebase Auth profile and Firestore user document
-      // For now, we'll simulate the update
+      // Prepare the update data
+      const updateData = {
+        displayName: name,
+        photoURL: imageUri,
+        timezone: timezone,
+        birthday: birthday ? birthday.toISOString() : null
+      };
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Dispatch the update action
+      const resultAction = await dispatch(updateProfile(updateData));
       
-      if (user) {
-        dispatch(updateProfile({
-          displayName: name,
-          photoURL: imageUri
-        }));
+      // Check if the action was fulfilled
+      if (updateProfile.fulfilled.match(resultAction)) {
+        setLoading(false);
+        Alert.alert(
+          'Success',
+          'Your profile has been updated successfully',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        throw new Error('Failed to update profile');
       }
-      
-      setLoading(false);
-      Alert.alert(
-        'Success',
-        'Your profile has been updated successfully',
-        [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack()
-          }
-        ]
-      );
     } catch (error) {
       setLoading(false);
       Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -215,6 +244,40 @@ const EditProfileScreen: React.FC = () => {
                 editable={false}
               />
               <Text style={styles.helperText}>Email cannot be changed</Text>
+            </View>
+            
+            {/* Birthday field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Birthday</Text>
+              <TouchableOpacity 
+                style={styles.input} 
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={birthday ? styles.dateText : styles.dateTextPlaceholder}>
+                  {birthday ? formatBirthday(birthday) : 'Select your birthday'}
+                </Text>
+              </TouchableOpacity>
+              
+              {showDatePicker && (
+                <DateTimePicker
+                  value={birthday || new Date()}
+                  mode="date"
+                  display="default"
+                  onChange={onChangeBirthday}
+                  maximumDate={new Date()} // Prevent future dates
+                />
+              )}
+            </View>
+            
+            {/* Timezone field */}
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Timezone</Text>
+              <TextInput
+                style={[styles.input, styles.disabledInput]}
+                value={timezone}
+                editable={false}
+              />
+              <Text style={styles.helperText}>Detected from your device</Text>
             </View>
           </View>
         </ScrollView>
@@ -321,6 +384,14 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#888',
     marginTop: 5,
+  },
+  dateText: {
+    color: '#333',
+    fontSize: 16,
+  },
+  dateTextPlaceholder: {
+    color: '#999',
+    fontSize: 16,
   },
   buttonContainer: {
     flexDirection: 'row',

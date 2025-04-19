@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -12,48 +12,54 @@ import {
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainTabParamList, RootStackParamList } from '../../navigation';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../../store';
+import { useDispatch } from 'react-redux';
+import { signOut } from '../../store/slices/authSlice';
+import { useProfile } from '../../hooks/useProfile';
 
 type ProfileScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Profile'>,
   StackNavigationProp<RootStackParamList>
 >;
 
+// Notification settings default values
+const DEFAULT_NOTIFICATION_SETTINGS = {
+  newVideos: true,
+  comments: true,
+  likes: true,
+  groupInvites: true,
+  dailyPrompts: true,
+};
+
 const ProfileScreen: React.FC = () => {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const dispatch = useDispatch();
-  
-  // Get user from Redux store
-  const { user } = useSelector((state: RootState) => state.user);
   const [loading, setLoading] = useState(false);
   
-  // Use mock data if user is not available
-  const userData = user || {
-    id: 'user1',
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@example.com',
-    photoUrl: null,
-    timezone: 'America/New_York',
-    displayName: 'Sarah Johnson',
-    notificationSettings: {
-      newVideos: true,
-      comments: true,
-      likes: true,
-      groupInvites: true,
-      dailyPrompts: true,
-    }
+  // Use our custom hook to get profile data and refresh it when screen comes into focus
+  const { user, isLoading } = useProfile(true);
+  
+  // Initialize notification settings
+  const [notificationSettings, setNotificationSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
+
+  // Format date for display
+  const formatBirthday = (dateString: string | null) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString();
   };
   
   // Handle notification toggle
-  const handleToggleNotification = (setting: keyof typeof userData.notificationSettings) => {
+  const handleToggleNotification = (setting: keyof typeof DEFAULT_NOTIFICATION_SETTINGS) => {
+    setNotificationSettings(prev => ({
+      ...prev,
+      [setting]: !prev[setting]
+    }));
     // In a real app, this would update user settings in Firebase
-    console.log(`Toggled ${setting} to ${!userData.notificationSettings[setting]}`);
+    console.log(`Toggled ${setting} to ${!notificationSettings[setting]}`);
   };
   
   // Handle logout
@@ -72,12 +78,11 @@ const ProfileScreen: React.FC = () => {
           onPress: () => {
             setLoading(true);
             
-            // Simulate logout process
-            setTimeout(() => {
-              setLoading(false);
-              // In a real app, this would clear the auth state and navigate to the login screen
-              console.log('User logged out');
-            }, 1000);
+            // Dispatch the signOut action
+            dispatch(signOut())
+              .finally(() => {
+                setLoading(false);
+              });
           }
         }
       ]
@@ -95,7 +100,7 @@ const ProfileScreen: React.FC = () => {
         <Text style={styles.headerTitle}>Profile</Text>
       </View>
       
-      {loading ? (
+      {isLoading || loading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ECDC4" />
         </View>
@@ -105,23 +110,28 @@ const ProfileScreen: React.FC = () => {
           <View style={styles.profileSection}>
             <View style={styles.profileHeader}>
               <View style={styles.avatarContainer}>
-                {userData.photoURL ? (
-                  <Image source={{ uri: userData.photoURL }} style={styles.avatar} />
+                {user?.photoURL ? (
+                  <Image source={{ uri: user.photoURL }} style={styles.avatar} />
                 ) : (
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>
-                      {userData.displayName?.split(' ').map(n => n[0]).join('') || 'SJ'}
+                      {user?.displayName?.split(' ').map(n => n[0]).join('') || 'SJ'}
                     </Text>
                   </View>
                 )}
               </View>
               
               <View style={styles.profileInfo}>
-                <Text style={styles.userName}>{userData.displayName || 'User'}</Text>
-                <Text style={styles.userEmail}>{userData.email}</Text>
+                <Text style={styles.userName}>{user?.displayName || 'User'}</Text>
+                <Text style={styles.userEmail}>{user?.email}</Text>
                 <Text style={styles.userTimezone}>
-                  <Ionicons name="time-outline" size={14} color="#666" /> {userData.timezone}
+                  <Ionicons name="time-outline" size={14} color="#666" /> {user?.timezone || 'Unknown timezone'}
                 </Text>
+                {user?.birthday && (
+                  <Text style={styles.userBirthday}>
+                    <Ionicons name="calendar-outline" size={14} color="#666" /> {formatBirthday(user.birthday)}
+                  </Text>
+                )}
               </View>
             </View>
             
@@ -145,7 +155,7 @@ const ProfileScreen: React.FC = () => {
                 </Text>
               </View>
               <Switch
-                value={userData.notificationSettings.newVideos}
+                value={notificationSettings.newVideos}
                 onValueChange={() => handleToggleNotification('newVideos')}
                 trackColor={{ false: '#ddd', true: '#4ECDC4' }}
                 thumbColor="#fff"
@@ -160,7 +170,7 @@ const ProfileScreen: React.FC = () => {
                 </Text>
               </View>
               <Switch
-                value={userData.notificationSettings.comments}
+                value={notificationSettings.comments}
                 onValueChange={() => handleToggleNotification('comments')}
                 trackColor={{ false: '#ddd', true: '#4ECDC4' }}
                 thumbColor="#fff"
@@ -175,7 +185,7 @@ const ProfileScreen: React.FC = () => {
                 </Text>
               </View>
               <Switch
-                value={userData.notificationSettings.likes}
+                value={notificationSettings.likes}
                 onValueChange={() => handleToggleNotification('likes')}
                 trackColor={{ false: '#ddd', true: '#4ECDC4' }}
                 thumbColor="#fff"
@@ -190,7 +200,7 @@ const ProfileScreen: React.FC = () => {
                 </Text>
               </View>
               <Switch
-                value={userData.notificationSettings.groupInvites}
+                value={notificationSettings.groupInvites}
                 onValueChange={() => handleToggleNotification('groupInvites')}
                 trackColor={{ false: '#ddd', true: '#4ECDC4' }}
                 thumbColor="#fff"
@@ -205,7 +215,7 @@ const ProfileScreen: React.FC = () => {
                 </Text>
               </View>
               <Switch
-                value={userData.notificationSettings.dailyPrompts}
+                value={notificationSettings.dailyPrompts}
                 onValueChange={() => handleToggleNotification('dailyPrompts')}
                 trackColor={{ false: '#ddd', true: '#4ECDC4' }}
                 thumbColor="#fff"
@@ -327,6 +337,11 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   userTimezone: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 3,
+  },
+  userBirthday: {
     fontSize: 14,
     color: '#666',
   },
