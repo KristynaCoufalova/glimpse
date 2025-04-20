@@ -15,7 +15,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useDispatch } from 'react-redux';
 import { AuthStackParamList } from '../../navigation';
 import { signup } from '../../store/slices/authSlice';
-import { setUser } from '../../store/slices/userSlice';
+import { AppDispatch } from '../../store';
 
 type SignupScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Signup'>;
 
@@ -24,7 +24,7 @@ interface SignupScreenProps {
 }
 
 const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -53,28 +53,13 @@ const SignupScreen: React.FC<SignupScreenProps> = ({ navigation }) => {
     setError('');
 
     try {
-      // In a real implementation, this would dispatch the signup action
-      // const result = await dispatch(signup({ email, password, displayName: name }));
+      // Dispatch the actual signup action to Firebase and unwrap the result
+      const user = await dispatch(signup({ email, password, displayName: name })).unwrap();
       
-      // For now, we'll simulate a successful signup
-      // Simulate signup delay
-      setTimeout(() => {
-        setLoading(false);
-        
-        // Create a mock user and dispatch setUser action
-        const mockUser = {
-          uid: 'user123',
-          email: email,
-          displayName: name,
-          photoURL: null
-        };
-        
-        dispatch(setUser(mockUser));
-        
-        // Navigate to main app after successful signup
-        // This will be handled by Redux auth state in the future
-        console.log('User signed up successfully:', mockUser);
-      }, 1500);
+      // Navigation will be handled by the Navigation component based on auth state
+      console.log('User signed up successfully:', user);
+      
+      setLoading(false);
     } catch (err) {
       setLoading(false);
       setError('Failed to create account. Please try again.');

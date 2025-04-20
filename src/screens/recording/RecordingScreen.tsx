@@ -9,27 +9,22 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  FlatList,
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import * as ExpoCamera from 'expo-camera';
 import { CameraView } from 'expo-camera';
-import { useNavigation, StackActions } from '@react-navigation/native';
+import { useNavigation, StackActions, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { uploadVideo } from '../../store/slices/videosSlice';
+import { COLORS } from '../../constants';
+
 type RecordingScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-
-// Mock data for groups
-interface Group {
-  id: string;
-  name: string;
-}
-
-const mockGroups: Group[] = [
-  { id: 'group1', name: 'Family' },
-  { id: 'group2', name: 'College Friends' },
-  { id: 'group3', name: 'Work Team' },
-];
+type RecordingScreenRouteProp = RouteProp<RootStackParamList, 'Recording'>;
 
 // Daily prompt
 const dailyPrompt = 'Share something that made you smile today';
@@ -38,19 +33,29 @@ const MAX_DURATION = 90; // 90 seconds max recording duration
 
 const RecordingScreen: React.FC = () => {
   const navigation = useNavigation<RecordingScreenNavigationProp>();
+  const route = useRoute<RecordingScreenRouteProp>();
+  const dispatch = useDispatch();
   const cameraRef = useRef<any>(null);
+  
+  // Get user and groups from Redux
+  const { user } = useSelector((state: RootState) => state.auth);
+  const { groups } = useSelector((state: RootState) => state.groups);
+  const { status, uploadProgress } = useSelector((state: RootState) => state.videos);
+  
+  const initialSelectedGroups = route.params?.selectedGroupIds || [];
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [cameraType, setCameraType] = useState('front');
-  const [flashMode, setFlashMode] = useState('off');
+  const [cameraType, setCameraType] = useState(ExpoCamera.CameraType.front);
+  const [flashMode, setFlashMode] = useState(ExpoCamera.FlashMode.off);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingTimer, setRecordingTimer] = useState<NodeJS.Timeout | null>(null);
   const [videoUri, setVideoUri] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
-  const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState<string[]>(initialSelectedGroups);
   const [showPrompt, setShowPrompt] = useState(false);
+  
+  const isUploading = status === 'loading';
 
   // Request camera permissions
   useEffect(() => {
@@ -72,12 +77,12 @@ const RecordingScreen: React.FC = () => {
 
   // Toggle camera type (front/back)
   const toggleCameraType = () => {
-    setCameraType(current => (current === 'back' ? 'front' : 'back'));
+    setCameraType(current => (current === ExpoCamera.CameraType.back ? ExpoCamera.CameraType.front : ExpoCamera.CameraType.back));
   };
 
   // Toggle flash mode
   const toggleFlashMode = () => {
-    setFlashMode(current => (current === 'off' ? 'torch' : 'off'));
+    setFlashMode(current => (current === ExpoCamera.FlashMode.off ? ExpoCamera.FlashMode.torch : ExpoCamera.FlashMode.off));
   };
 
   // Start recording
@@ -151,25 +156,35 @@ const RecordingScreen: React.FC = () => {
       return;
     }
 
-    setIsUploading(true);
+    if (!user) {
+      Alert.alert('Error', 'You must be logged in to share videos.');
+      return;
+    }
 
     try {
-      // Simulate upload delay
-      setTimeout(() => {
-        setIsUploading(false);
+      // Prepare video data
+      const videoData = {
+        videoUri,
+        caption,
+        groupIds: selectedGroups,
+        userId: user.uid,
+        duration: recordingDuration || 30, // Use actual duration or a default
+        promptId: undefined // If using a prompt, store its ID here
+      };
 
-        // In a real app, we would upload the video to Firebase Storage
-        // and create a document in Firestore with the video details
-
-        Alert.alert('Success', 'Your video has been shared successfully!', [
-          {
-            text: 'OK',
-            onPress: () => navigation.dispatch(StackActions.popToTop()),
-          },
-        ]);
-      }, 2000);
+      // Upload the video
+      await dispatch(uploadVideo(videoData) as any);
+      
+      // Check if there was an error
+      if (status === 'failed') {
+        // Error will be handled by the error alert below
+        return;
+      }
+      
+      // Success - navigate back to feed
+      navigation.dispatch(StackActions.popToTop());
+      Alert.alert('Success', 'Your video has been shared successfully!');
     } catch (error) {
-      setIsUploading(false);
       Alert.alert('Error', 'Failed to share video. Please try again.');
       console.error('Error sharing video:', error);
     }
@@ -188,7 +203,7 @@ const RecordingScreen: React.FC = () => {
         onPress: () => {
           setVideoUri(null);
           setCaption('');
-          setSelectedGroups([]);
+          setSelectedGroups(initialSelectedGroups);
         },
       },
     ]);
@@ -216,11 +231,38 @@ const RecordingScreen: React.FC = () => {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  // Render group selection
+  const renderGroupItem = ({ item }: { item: any }) => {
+    const isSelected = selectedGroups.includes(item.id);
+    
+    return (
+      <TouchableOpacity
+        style={[
+          styles.groupItem,
+          isSelected && styles.groupItemSelected,
+        ]}
+        onPress={() => toggleGroupSelection(item.id)}
+      >
+        <Text
+          style={[
+            styles.groupItemText,
+            isSelected && styles.groupItemTextSelected,
+          ]}
+        >
+          {item.name}
+        </Text>
+        {isSelected && (
+          <Ionicons name="checkmark" size={16} color="#fff" />
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   if (hasPermission === null) {
     return (
       <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4ECDC4" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
           <Text style={styles.loadingText}>Requesting camera permission...</Text>
         </View>
       </SafeScreen>
@@ -231,7 +273,7 @@ const RecordingScreen: React.FC = () => {
     return (
       <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
         <View style={styles.permissionContainer}>
-          <Ionicons name="videocam-off" size={60} color="#FF6B6B" />
+          <Ionicons name="videocam-off" size={60} color={COLORS.secondary} />
           <Text style={styles.permissionTitle}>Camera Permission Required</Text>
           <Text style={styles.permissionText}>
             We need camera and microphone permissions to record videos. Please enable them in your
@@ -247,18 +289,15 @@ const RecordingScreen: React.FC = () => {
 
   return (
     <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
-
       {/* Camera preview or video preview */}
       {!videoUri ? (
         <View style={styles.cameraContainer}>
-          <View style={styles.camera}>
-            {/* Using a div-like approach since CameraView props differ */}
-            <View style={{ flex: 1 }}>
-              {/* Camera component will be properly rendered in actual app */}
-              <Text style={styles.previewText}>Camera Preview</Text>
-              <Text style={styles.previewSubtext}>(Camera will show here in the actual app)</Text>
-            </View>
-          </View>
+          <CameraView
+            style={styles.camera}
+            type={cameraType}
+            flashMode={flashMode}
+            ref={cameraRef}
+          />
 
           {/* Recording timer */}
           {isRecording && (
@@ -284,7 +323,7 @@ const RecordingScreen: React.FC = () => {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.controlButton} onPress={toggleFlashMode}>
-              <Ionicons name={flashMode === 'off' ? 'flash-off' : 'flash'} size={28} color="#fff" />
+              <Ionicons name={flashMode === ExpoCamera.FlashMode.off ? "flash-off" : "flash"} size={28} color="#fff" />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.controlButton} onPress={toggleCameraType}>
@@ -313,7 +352,7 @@ const RecordingScreen: React.FC = () => {
           <View style={styles.videoPreview}>
             <Text style={styles.previewText}>Video Preview</Text>
             <Text style={styles.previewSubtext}>
-              (In a real app, this would show the recorded video)
+              (Your recorded video will appear here)
             </Text>
           </View>
 
@@ -340,30 +379,37 @@ const RecordingScreen: React.FC = () => {
               </Text>
 
               <View style={styles.groupsContainer}>
-                {mockGroups.map(group => (
-                  <TouchableOpacity
-                    key={group.id}
-                    style={[
-                      styles.groupItem,
-                      selectedGroups.includes(group.id) && styles.groupItemSelected,
-                    ]}
-                    onPress={() => toggleGroupSelection(group.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.groupItemText,
-                        selectedGroups.includes(group.id) && styles.groupItemTextSelected,
-                      ]}
-                    >
-                      {group.name}
-                    </Text>
-                    {selectedGroups.includes(group.id) && (
-                      <Ionicons name="checkmark" size={16} color="#fff" />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                {groups.length > 0 ? (
+                  <FlatList
+                    data={groups}
+                    renderItem={renderGroupItem}
+                    keyExtractor={(item) => item.id}
+                    horizontal={false}
+                    scrollEnabled={false}
+                    numColumns={2}
+                  />
+                ) : (
+                  <Text style={styles.noGroupsText}>
+                    You don't have any groups yet. Create a group first.
+                  </Text>
+                )}
               </View>
             </View>
+
+            {/* Upload progress */}
+            {isUploading && (
+              <View style={styles.progressContainer}>
+                <Text style={styles.progressText}>Uploading video... {Math.round(uploadProgress)}%</Text>
+                <View style={styles.progressBarContainer}>
+                  <View 
+                    style={[
+                      styles.progressBarUpload, 
+                      { width: `${uploadProgress}%` }
+                    ]} 
+                  />
+                </View>
+              </View>
+            )}
 
             {/* Action buttons */}
             <View style={styles.actionButtons}>
@@ -427,6 +473,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 20,
+    marginBottom: 40,
   },
   camera: {
     flex: 1,
@@ -489,24 +536,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 20,
     flexDirection: 'row',
-    marginBottom: 10,
-    marginRight: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    justifyContent: 'space-between',
+    margin: 5,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    width: '48%',
   },
   groupItemSelected: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
   },
   groupItemText: {
     color: '#333',
-    marginRight: 5,
+    fontSize: 14,
+    fontWeight: '500',
   },
   groupItemTextSelected: {
     color: '#fff',
   },
   groupsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    marginTop: 10,
   },
   inputGroup: {
     marginBottom: 20,
@@ -540,8 +588,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
+  noGroupsText: {
+    color: '#999',
+    fontSize: 14,
+    fontStyle: 'italic',
+    padding: 10,
+    textAlign: 'center',
+  },
   permissionButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -589,11 +644,33 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   progressBar: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: COLORS.secondary,
     height: 4,
     left: 0,
     position: 'absolute',
     top: 40,
+  },
+  progressBarContainer: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 4,
+    height: 8,
+    marginTop: 8,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  progressBarUpload: {
+    backgroundColor: COLORS.primary,
+    height: '100%',
+  },
+  progressContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginBottom: 20,
+    padding: 15,
+  },
+  progressText: {
+    color: '#333',
+    fontSize: 14,
   },
   promptHeader: {
     alignItems: 'center',
@@ -637,7 +714,7 @@ const styles = StyleSheet.create({
     right: 0,
   },
   recordIcon: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: COLORS.secondary,
     borderRadius: 27,
     height: 54,
     width: 54,
@@ -647,11 +724,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   recordingButton: {
-    backgroundColor: '#FF6B6B',
+    backgroundColor: COLORS.secondary,
   },
   shareButton: {
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -691,7 +768,7 @@ const styles = StyleSheet.create({
   },
   usePromptButton: {
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,

@@ -8,12 +8,12 @@ import {
   query,
   where,
   updateDoc,
-  arrayUnion,
   Timestamp,
   serverTimestamp,
   FieldValue,
 } from 'firebase/firestore';
-import { firestore } from '../../services/firebase/config';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { firestore, storage } from '../../services/firebase/config';
 
 // Define types
 export interface GroupMember {
@@ -44,6 +44,7 @@ interface CreateGroupData {
   name: string;
   description: string;
   userId: string;
+  imageUri?: string | null;
   inviteEmails?: string[];
 }
 
@@ -53,19 +54,40 @@ interface InviteMemberData {
   userId: string;
 }
 
+// Helper function to convert image URI to blob
+const uriToBlob = async (uri: string): Promise<Blob> => {
+  return fetch(uri).then(response => response.blob());
+};
+
 // Async thunks
 export const createGroup = createAsyncThunk(
   'groups/createGroup',
   async (data: CreateGroupData, { rejectWithValue }) => {
     try {
-      // Create a new group document
+      // Create a new group document reference
       const groupRef = doc(collection(firestore, 'groups'));
       const now = serverTimestamp();
+      
+      // Upload image if provided
+      let photoURL = null;
+      if (data.imageUri) {
+        try {
+          // Upload image to Firebase Storage
+          const blob = await uriToBlob(data.imageUri);
+          const imageRef = ref(storage, `group_photos/${groupRef.id}/${Date.now()}.jpg`);
+          await uploadBytes(imageRef, blob);
+          photoURL = await getDownloadURL(imageRef);
+        } catch (error) {
+          console.error('Error uploading group photo:', error);
+          // Continue without photo if upload fails
+        }
+      }
 
+      // Create the group data
       const newGroup: Omit<Group, 'id'> = {
         name: data.name,
         description: data.description,
-        photoURL: null,
+        photoURL,
         createdBy: data.userId,
         createdAt: now,
         lastActivity: now,
@@ -78,9 +100,10 @@ export const createGroup = createAsyncThunk(
         },
       };
 
+      // Save the group to Firestore
       await setDoc(groupRef, newGroup);
 
-      // If invite emails are provided, create invitations
+      // Create invitations if emails are provided
       if (data.inviteEmails && data.inviteEmails.length > 0) {
         const invitesCollection = collection(firestore, 'invites');
 
@@ -171,9 +194,22 @@ export const inviteMember = createAsyncThunk(
   'groups/inviteMember',
   async (data: InviteMemberData, { rejectWithValue }) => {
     try {
-      const invitesCollection = collection(firestore, 'invites');
-      const inviteRef = doc(invitesCollection);
-
+      // Check if user is already a member or has been invited
+      const existingInvitesQuery = query(
+        collection(firestore, 'invites'),
+        where('groupId', '==', data.groupId),
+        where('email', '==', data.email.toLowerCase())
+      );
+      
+      const existingInvitesSnapshot = await getDocs(existingInvitesQuery);
+      
+      if (!existingInvitesSnapshot.empty) {
+        return rejectWithValue('This person has already been invited to this group');
+      }
+      
+      // Create the invitation
+      const inviteRef = doc(collection(firestore, 'invites'));
+      
       await setDoc(inviteRef, {
         groupId: data.groupId,
         email: data.email.trim().toLowerCase(),
@@ -297,7 +333,7 @@ const groupsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-  },
+  }
 });
 
 export const { setCurrentGroup, clearGroupsError, updateGroupLastActivity } = groupsSlice.actions;

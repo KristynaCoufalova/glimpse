@@ -8,209 +8,138 @@ import {
   Image,
   ActivityIndicator,
   ScrollView,
+  Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { fetchGroupById, inviteMember } from '../../store/slices/groupsSlice';
+import { fetchVideosForGroup } from '../../store/slices/videosSlice';
+import { isValidEmail } from '../../utils';
+import { COLORS } from '../../constants';
 
 type GroupDetailScreenRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 type GroupDetailScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
-// Mock data types
-interface GroupMember {
-  id: string;
-  name: string;
-  avatarUrl: string;
-  role: 'admin' | 'member';
-}
-
-interface VideoItem {
-  id: string;
-  thumbnailUrl: string;
-  caption: string;
-  creator: {
-    id: string;
-    name: string;
-    avatarUrl: string;
-  };
-  createdAt: string;
-  duration: number;
-  views: number;
-  likes: number;
-  comments: number;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  description: string;
-  coverPhotoUrl: string;
-  members: GroupMember[];
-  createdAt: string;
-  lastActivity: string;
-  videos: VideoItem[];
-}
-
-// Mock data
-const mockGroups: Record<string, Group> = {
-  group1: {
-    id: 'group1',
-    name: 'Family',
-    description:
-      'Stay connected with family members near and far. Share your daily moments and keep everyone updated on your life.',
-    coverPhotoUrl: 'https://example.com/family.jpg',
-    members: [
-      {
-        id: 'user1',
-        name: 'Sarah Johnson',
-        avatarUrl: 'https://example.com/avatar1.jpg',
-        role: 'admin',
-      },
-      {
-        id: 'user2',
-        name: 'Michael Chen',
-        avatarUrl: 'https://example.com/avatar2.jpg',
-        role: 'member',
-      },
-      {
-        id: 'user3',
-        name: 'Emma Wilson',
-        avatarUrl: 'https://example.com/avatar3.jpg',
-        role: 'member',
-      },
-      {
-        id: 'user4',
-        name: 'David Kim',
-        avatarUrl: 'https://example.com/avatar4.jpg',
-        role: 'member',
-      },
-    ],
-    createdAt: '2023-05-10T14:30:00Z',
-    lastActivity: '2023-06-15T09:45:00Z',
-    videos: [
-      {
-        id: 'video1',
-        thumbnailUrl: 'https://example.com/thumbnail1.jpg',
-        caption: 'Enjoying a beautiful sunset at the beach! #sunset #beach',
-        creator: {
-          id: 'user1',
-          name: 'Sarah Johnson',
-          avatarUrl: 'https://example.com/avatar1.jpg',
-        },
-        createdAt: '2023-06-15T14:30:00Z',
-        duration: 45,
-        views: 12,
-        likes: 5,
-        comments: 3,
-      },
-      {
-        id: 'video2',
-        thumbnailUrl: 'https://example.com/thumbnail2.jpg',
-        caption: 'Making pasta from scratch for the first time!',
-        creator: {
-          id: 'user3',
-          name: 'Emma Wilson',
-          avatarUrl: 'https://example.com/avatar3.jpg',
-        },
-        createdAt: '2023-06-13T18:45:00Z',
-        duration: 75,
-        views: 18,
-        likes: 7,
-        comments: 5,
-      },
-    ],
-  },
-  group2: {
-    id: 'group2',
-    name: 'College Friends',
-    description:
-      'Keeping up with college buddies across the country. Share your adventures and life updates!',
-    coverPhotoUrl: 'https://example.com/college.jpg',
-    members: [
-      {
-        id: 'user2',
-        name: 'Michael Chen',
-        avatarUrl: 'https://example.com/avatar2.jpg',
-        role: 'admin',
-      },
-      {
-        id: 'user5',
-        name: 'Jessica Taylor',
-        avatarUrl: 'https://example.com/avatar5.jpg',
-        role: 'member',
-      },
-      {
-        id: 'user6',
-        name: 'Ryan Garcia',
-        avatarUrl: 'https://example.com/avatar6.jpg',
-        role: 'member',
-      },
-    ],
-    createdAt: '2023-04-22T11:15:00Z',
-    lastActivity: '2023-06-14T18:20:00Z',
-    videos: [
-      {
-        id: 'video3',
-        thumbnailUrl: 'https://example.com/thumbnail3.jpg',
-        caption: 'First day at my new job! So excited for this opportunity.',
-        creator: {
-          id: 'user2',
-          name: 'Michael Chen',
-          avatarUrl: 'https://example.com/avatar2.jpg',
-        },
-        createdAt: '2023-06-14T09:15:00Z',
-        duration: 60,
-        views: 24,
-        likes: 10,
-        comments: 8,
-      },
-    ],
-  },
-};
-
 const GroupDetailScreen: React.FC = () => {
   const route = useRoute<GroupDetailScreenRouteProp>();
   const navigation = useNavigation<GroupDetailScreenNavigationProp>();
+  const dispatch = useDispatch();
   const { groupId } = route.params;
 
-  const [group, setGroup] = useState<Group | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Get group and videos from Redux
+  const { currentGroup: group, status: groupStatus } = useSelector((state: RootState) => state.groups);
+  const { videos, status: videosStatus } = useSelector((state: RootState) => state.videos);
+  const { user } = useSelector((state: RootState) => state.auth);
 
-  // Fetch group data
+  // Local state
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const loading = groupStatus === 'loading' || videosStatus === 'loading';
+
+  // Fetch group and videos when component mounts
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const fetchedGroup = mockGroups[groupId];
-      if (fetchedGroup) {
-        setGroup(fetchedGroup);
-        setLoading(false);
-      } else {
-        setError('Group not found');
-        setLoading(false);
-      }
-    }, 1000);
-  }, [groupId]);
+    if (groupId && user) {
+      dispatch(fetchGroupById(groupId) as any);
+      dispatch(fetchVideosForGroup({ groupId }) as any);
+    }
+  }, [dispatch, groupId, user]);
 
   const handleRecordVideo = () => {
-    navigation.navigate('Recording');
+    // Pass the current group ID to the recording screen
+    navigation.navigate('Recording', { selectedGroupIds: [groupId] });
   };
 
   const handleInviteMember = () => {
-    // This would navigate to an invite screen in a real app
-    console.log('Invite member to group:', groupId);
+    setInviteModalVisible(true);
   };
 
-  const renderVideoItem = ({ item }: { item: VideoItem }) => {
+  const handleSendInvite = async () => {
+    // Validate email
+    if (!inviteEmail.trim()) {
+      setInviteError('Please enter an email address');
+      return;
+    }
+
+    if (!isValidEmail(inviteEmail.trim())) {
+      setInviteError('Please enter a valid email address');
+      return;
+    }
+
+    if (!user) {
+      setInviteError('You must be logged in to invite members');
+      return;
+    }
+
+    setInviteLoading(true);
+    setInviteError(null);
+
+    try {
+      await dispatch(
+        inviteMember({ 
+          groupId, 
+          email: inviteEmail.trim(),
+          userId: user.uid
+        }) as any
+      );
+      
+      setInviteModalVisible(false);
+      setInviteEmail('');
+      Alert.alert('Success', 'Invitation sent successfully');
+    } catch (error) {
+      if (error instanceof Error) {
+        setInviteError(error.message);
+      } else {
+        setInviteError('Failed to send invitation');
+      }
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  // Format date
+  const formatDate = (timestamp: any) => {
+    if (!timestamp) return 'Recently';
+    
+    const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return date.toLocaleDateString();
+  };
+
+  // Check if current user is admin
+  const isCurrentUserAdmin = () => {
+    if (!group || !user) return false;
+    return group.members && 
+           group.members[user.uid] && 
+           group.members[user.uid].role === 'admin';
+  };
+
+  const renderVideoItem = ({ item }: { item: any }) => {
     return (
-      <TouchableOpacity style={styles.videoCard}>
+      <TouchableOpacity 
+        style={styles.videoCard}
+        onPress={() => {
+          // In a real app, this would navigate to the video player
+          console.log('Navigate to video player for video ID:', item.id);
+        }}
+      >
         {/* Video thumbnail */}
         <View style={styles.thumbnailContainer}>
-          <View style={styles.thumbnail}>
-            <Text style={styles.thumbnailText}>Video</Text>
-          </View>
+          {item.thumbnailURL ? (
+            <Image source={{ uri: item.thumbnailURL }} style={styles.thumbnail} />
+          ) : (
+            <View style={styles.thumbnail}>
+              <Text style={styles.thumbnailText}>Video</Text>
+            </View>
+          )}
           <View style={styles.durationBadge}>
             <Text style={styles.durationText}>
               {Math.floor(item.duration / 60)}:{(item.duration % 60).toString().padStart(2, '0')}
@@ -222,8 +151,11 @@ const GroupDetailScreen: React.FC = () => {
           {/* Creator info */}
           <View style={styles.creatorContainer}>
             <View style={styles.creatorAvatar} />
-            <Text style={styles.creatorName}>{item.creator.name}</Text>
-            <Text style={styles.videoDate}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+            <Text style={styles.creatorName}>
+              {/* In a real app, you would fetch the creator's name from Firestore */}
+              {item.creator === user?.uid ? 'You' : 'Group Member'}
+            </Text>
+            <Text style={styles.videoDate}>{formatDate(item.createdAt)}</Text>
           </View>
 
           {/* Caption */}
@@ -233,15 +165,17 @@ const GroupDetailScreen: React.FC = () => {
           <View style={styles.statsContainer}>
             <View style={styles.statItem}>
               <Ionicons name="eye-outline" size={16} color="#666" />
-              <Text style={styles.statText}>{item.views}</Text>
+              <Text style={styles.statText}>
+                {item.viewers ? Object.keys(item.viewers).length : 0}
+              </Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="heart-outline" size={16} color="#666" />
-              <Text style={styles.statText}>{item.likes}</Text>
+              <Text style={styles.statText}>{item.reactions?.likes || 0}</Text>
             </View>
             <View style={styles.statItem}>
               <Ionicons name="chatbubble-outline" size={16} color="#666" />
-              <Text style={styles.statText}>{item.comments}</Text>
+              <Text style={styles.statText}>{item.reactions?.comments || 0}</Text>
             </View>
           </View>
         </View>
@@ -249,22 +183,63 @@ const GroupDetailScreen: React.FC = () => {
     );
   };
 
+  // Function to render members
+  const renderMembers = () => {
+    if (!group || !group.members) return null;
+    
+    const memberArray = Object.values(group.members);
+    
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.membersScrollContent}
+      >
+        {memberArray.map((member: any) => (
+          <View key={member.id} style={styles.memberItem}>
+            <View style={styles.memberAvatar} />
+            <Text style={styles.memberName}>
+              {member.id === user?.uid ? 'You' : 'Member'}
+            </Text>
+            {member.role === 'admin' && (
+              <View style={styles.adminBadge}>
+                <Text style={styles.adminBadgeText}>Admin</Text>
+              </View>
+            )}
+          </View>
+        ))}
+        
+        {isCurrentUserAdmin() && (
+          <TouchableOpacity 
+            style={styles.addMemberItem} 
+            onPress={handleInviteMember}
+          >
+            <View style={styles.addMemberIcon}>
+              <Ionicons name="person-add" size={24} color={COLORS.primary} />
+            </View>
+            <Text style={styles.addMemberText}>Invite</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    );
+  };
+
   if (loading) {
     return (
       <SafeScreen style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4ECDC4" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeScreen>
     );
   }
 
-  if (error || !group) {
+  if (!group) {
     return (
       <SafeScreen style={styles.container}>
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={60} color="#FF6B6B" />
-          <Text style={styles.errorText}>{error || 'An error occurred'}</Text>
+          <Ionicons name="alert-circle" size={60} color={COLORS.secondary} />
+          <Text style={styles.errorText}>Group not found</Text>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>Go Back</Text>
           </TouchableOpacity>
@@ -279,56 +254,48 @@ const GroupDetailScreen: React.FC = () => {
         {/* Group header */}
         <View style={styles.groupHeader}>
           <View style={styles.coverPhoto}>
-            <Text style={styles.coverPhotoText}>{group.name}</Text>
+            {group.photoURL ? (
+              <Image source={{ uri: group.photoURL }} style={styles.coverPhotoImage} />
+            ) : (
+              <Text style={styles.coverPhotoText}>{group.name}</Text>
+            )}
           </View>
 
           <View style={styles.groupInfo}>
             <Text style={styles.groupName}>{group.name}</Text>
-            <Text style={styles.groupDescription}>{group.description}</Text>
+            <Text style={styles.groupDescription}>{group.description || 'No description'}</Text>
 
             <View style={styles.groupActions}>
               <TouchableOpacity style={styles.actionButton} onPress={handleRecordVideo}>
-                <Ionicons name="videocam" size={20} color="#4ECDC4" />
+                <Ionicons name="videocam" size={20} color={COLORS.primary} />
                 <Text style={styles.actionButtonText}>Record</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.actionButton} onPress={handleInviteMember}>
-                <Ionicons name="person-add" size={20} color="#4ECDC4" />
-                <Text style={styles.actionButtonText}>Invite</Text>
-              </TouchableOpacity>
+              {isCurrentUserAdmin() && (
+                <TouchableOpacity style={styles.actionButton} onPress={handleInviteMember}>
+                  <Ionicons name="person-add" size={20} color={COLORS.primary} />
+                  <Text style={styles.actionButtonText}>Invite</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </View>
 
         {/* Members section */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Members ({group.members.length})</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.membersScrollContent}
-          >
-            {group.members.map(member => (
-              <View key={member.id} style={styles.memberItem}>
-                <View style={styles.memberAvatar} />
-                <Text style={styles.memberName}>{member.name}</Text>
-                {member.role === 'admin' && (
-                  <View style={styles.adminBadge}>
-                    <Text style={styles.adminBadgeText}>Admin</Text>
-                  </View>
-                )}
-              </View>
-            ))}
-          </ScrollView>
+          <Text style={styles.sectionTitle}>
+            Members ({group.members ? Object.keys(group.members).length : 0})
+          </Text>
+          {renderMembers()}
         </View>
 
         {/* Videos section */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Videos ({group.videos.length})</Text>
+          <Text style={styles.sectionTitle}>Videos ({videos.length})</Text>
 
-          {group.videos.length > 0 ? (
+          {videos.length > 0 ? (
             <FlatList
-              data={group.videos}
+              data={videos}
               renderItem={renderVideoItem}
               keyExtractor={item => item.id}
               scrollEnabled={false}
@@ -347,6 +314,52 @@ const GroupDetailScreen: React.FC = () => {
           )}
         </View>
       </ScrollView>
+
+      {/* Invite modal */}
+      <Modal
+        visible={inviteModalVisible}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setInviteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Invite Member</Text>
+              <TouchableOpacity onPress={() => setInviteModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalText}>
+              Enter the email address of the person you want to invite to join this group.
+            </Text>
+            
+            {inviteError && <Text style={styles.modalError}>{inviteError}</Text>}
+            
+            <TextInput
+              style={styles.modalInput}
+              value={inviteEmail}
+              onChangeText={setInviteEmail}
+              placeholder="Email address"
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            
+            <TouchableOpacity 
+              style={styles.modalButton}
+              onPress={handleSendInvite}
+              disabled={inviteLoading}
+            >
+              {inviteLoading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.modalButtonText}>Send Invite</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeScreen>
   );
 };
@@ -362,12 +375,32 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   actionButtonText: {
-    color: '#4ECDC4',
+    color: COLORS.primary,
     fontWeight: 'bold',
     marginLeft: 5,
   },
+  addMemberIcon: {
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    marginBottom: 8,
+    width: 60,
+  },
+  addMemberItem: {
+    alignItems: 'center',
+    marginRight: 20,
+    width: 70,
+  },
+  addMemberText: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   adminBadge: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 10,
     marginTop: 5,
     paddingHorizontal: 8,
@@ -379,7 +412,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   backButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -395,9 +428,14 @@ const styles = StyleSheet.create({
   },
   coverPhoto: {
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     height: 150,
     justifyContent: 'center',
+    width: '100%',
+  },
+  coverPhotoImage: {
+    height: '100%',
+    width: '100%',
   },
   coverPhotoText: {
     color: '#fff',
@@ -511,8 +549,65 @@ const styles = StyleSheet.create({
   membersScrollContent: {
     paddingBottom: 10,
   },
+  modalButton: {
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    marginTop: 15,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    width: '100%',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    maxWidth: 400,
+    padding: 20,
+    width: '90%',
+  },
+  modalError: {
+    color: COLORS.secondary,
+    fontSize: 14,
+    marginBottom: 15,
+  },
+  modalHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  modalInput: {
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    fontSize: 16,
+    marginVertical: 10,
+    padding: 15,
+    width: '100%',
+  },
+  modalOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalText: {
+    color: '#666',
+    fontSize: 14,
+    marginBottom: 10,
+  },
+  modalTitle: {
+    color: '#333',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
   recordVideoButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,

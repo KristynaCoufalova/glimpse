@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,79 +15,39 @@ import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { CompositeNavigationProp, useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainTabParamList, RootStackParamList } from '../../navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { fetchUserGroups } from '../../store/slices/groupsSlice';
+import { COLORS } from '../../constants';
 
 type GroupsScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Groups'>,
   StackNavigationProp<RootStackParamList>
 >;
 
-// Mock data for groups
-interface GroupMember {
-  id: string;
-  name: string;
-  avatarUrl: string;
-}
-
-interface Group {
-  id: string;
-  name: string;
-  description: string;
-  coverPhotoUrl: string;
-  members: GroupMember[];
-  createdAt: string;
-  lastActivity: string;
-}
-
-// Mock data
-const mockGroups: Group[] = [
-  {
-    id: 'group1',
-    name: 'Family',
-    description: 'Stay connected with family members',
-    coverPhotoUrl: 'https://example.com/family.jpg',
-    members: [
-      { id: 'user1', name: 'Sarah Johnson', avatarUrl: 'https://example.com/avatar1.jpg' },
-      { id: 'user2', name: 'Michael Chen', avatarUrl: 'https://example.com/avatar2.jpg' },
-      { id: 'user3', name: 'Emma Wilson', avatarUrl: 'https://example.com/avatar3.jpg' },
-      { id: 'user4', name: 'David Kim', avatarUrl: 'https://example.com/avatar4.jpg' },
-    ],
-    createdAt: '2023-05-10T14:30:00Z',
-    lastActivity: '2023-06-15T09:45:00Z',
-  },
-  {
-    id: 'group2',
-    name: 'College Friends',
-    description: 'Keeping up with college buddies',
-    coverPhotoUrl: 'https://example.com/college.jpg',
-    members: [
-      { id: 'user2', name: 'Michael Chen', avatarUrl: 'https://example.com/avatar2.jpg' },
-      { id: 'user5', name: 'Jessica Taylor', avatarUrl: 'https://example.com/avatar5.jpg' },
-      { id: 'user6', name: 'Ryan Garcia', avatarUrl: 'https://example.com/avatar6.jpg' },
-    ],
-    createdAt: '2023-04-22T11:15:00Z',
-    lastActivity: '2023-06-14T18:20:00Z',
-  },
-  {
-    id: 'group3',
-    name: 'Work Team',
-    description: 'Casual updates from the work team',
-    coverPhotoUrl: 'https://example.com/work.jpg',
-    members: [
-      { id: 'user1', name: 'Sarah Johnson', avatarUrl: 'https://example.com/avatar1.jpg' },
-      { id: 'user7', name: 'Alex Brown', avatarUrl: 'https://example.com/avatar7.jpg' },
-      { id: 'user8', name: 'Olivia Martinez', avatarUrl: 'https://example.com/avatar8.jpg' },
-      { id: 'user9', name: 'James Wilson', avatarUrl: 'https://example.com/avatar9.jpg' },
-      { id: 'user10', name: 'Sophia Lee', avatarUrl: 'https://example.com/avatar10.jpg' },
-    ],
-    createdAt: '2023-03-15T09:00:00Z',
-    lastActivity: '2023-06-13T14:10:00Z',
-  },
-];
-
 const GroupsScreen: React.FC = () => {
   const navigation = useNavigation<GroupsScreenNavigationProp>();
-  const [groups, setGroups] = useState<Group[]>(mockGroups);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+  
+  // Get groups from Redux store
+  const { groups, status, error } = useSelector((state: RootState) => state.groups);
+  const { user } = useSelector((state: RootState) => state.auth);
+  
+  const loading = status === 'loading';
+  
+  // Fetch groups when component mounts
+  useEffect(() => {
+    if (user) {
+      dispatch(fetchUserGroups(user.uid) as any);
+    }
+  }, [dispatch, user]);
+  
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error);
+    }
+  }, [error]);
 
   const handleGroupPress = (groupId: string) => {
     navigation.navigate('GroupDetail', { groupId });
@@ -96,35 +57,68 @@ const GroupsScreen: React.FC = () => {
     navigation.navigate('CreateGroup');
   };
 
-  const renderGroupItem = ({ item }: { item: Group }) => {
+  const renderGroupItem = ({ item }: { item: any }) => {
+    // Get first two initials if no photo
+    const getGroupInitials = (name: string) => {
+      return name
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .substring(0, 2)
+        .toUpperCase();
+    };
+    
+    // Format date
+    const formatDate = (timestamp: any) => {
+      if (!timestamp) return 'Recently';
+      
+      const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+      return date.toLocaleDateString();
+    };
+    
+    // Get member count
+    const memberCount = item.members ? Object.keys(item.members).length : 0;
+    
     return (
       <TouchableOpacity style={styles.groupCard} onPress={() => handleGroupPress(item.id)}>
-        {/* Group cover photo (placeholder) */}
+        {/* Group cover photo */}
         <View style={styles.coverPhoto}>
-          <Text style={styles.coverPhotoText}>{item.name}</Text>
+          {item.photoURL ? (
+            <Image source={{ uri: item.photoURL }} style={styles.coverPhotoImage} />
+          ) : (
+            <Text style={styles.coverPhotoText}>{getGroupInitials(item.name)}</Text>
+          )}
         </View>
 
         <View style={styles.groupInfo}>
           <Text style={styles.groupName}>{item.name}</Text>
-          <Text style={styles.groupDescription}>{item.description}</Text>
+          <Text style={styles.groupDescription} numberOfLines={2}>
+            {item.description || 'No description'}
+          </Text>
 
           {/* Member avatars */}
           <View style={styles.membersContainer}>
-            <Text style={styles.membersTitle}>Members</Text>
+            <Text style={styles.membersTitle}>Members ({memberCount})</Text>
             <View style={styles.avatarRow}>
-              {item.members.slice(0, 4).map((member, index) => (
-                <View
-                  key={member.id}
-                  style={[
-                    styles.memberAvatar,
-                    { zIndex: 5 - index, marginLeft: index > 0 ? -10 : 0 },
-                  ]}
-                />
-              ))}
+              {memberCount > 0 ? (
+                Object.values(item.members)
+                  .slice(0, 4)
+                  .map((member: any, index: number) => (
+                    <View
+                      key={member.id}
+                      style={[
+                        styles.memberAvatar,
+                        { zIndex: 5 - index, marginLeft: index > 0 ? -10 : 0 },
+                      ]}
+                    />
+                  ))
+              ) : (
+                <Text style={styles.noMembersText}>No members yet</Text>
+              )}
 
-              {item.members.length > 4 && (
+              {memberCount > 4 && (
                 <View style={[styles.memberAvatar, styles.memberAvatarMore]}>
-                  <Text style={styles.memberAvatarMoreText}>+{item.members.length - 4}</Text>
+                  <Text style={styles.memberAvatarMoreText}>+{memberCount - 4}</Text>
                 </View>
               )}
             </View>
@@ -134,7 +128,7 @@ const GroupsScreen: React.FC = () => {
           <View style={styles.activityContainer}>
             <Ionicons name="time-outline" size={16} color="#666" />
             <Text style={styles.activityText}>
-              Last activity: {new Date(item.lastActivity).toLocaleDateString()}
+              Last activity: {formatDate(item.lastActivity)}
             </Text>
           </View>
         </View>
@@ -154,7 +148,7 @@ const GroupsScreen: React.FC = () => {
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4ECDC4" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       ) : (
         <FlatList
@@ -201,18 +195,22 @@ const styles = StyleSheet.create({
   },
   coverPhoto: {
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     height: 120,
     justifyContent: 'center',
   },
+  coverPhotoImage: {
+    height: '100%',
+    width: '100%',
+  },
   coverPhotoText: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: 36,
     fontWeight: 'bold',
   },
   createButton: {
     alignItems: 'center',
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 20,
     flexDirection: 'row',
     paddingHorizontal: 12,
@@ -230,7 +228,7 @@ const styles = StyleSheet.create({
     padding: 30,
   },
   emptyCreateButton: {
-    backgroundColor: '#4ECDC4',
+    backgroundColor: COLORS.primary,
     borderRadius: 8,
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -327,6 +325,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
   },
+  noMembersText: {
+    color: '#999',
+    fontSize: 12,
+    fontStyle: 'italic',
+  }
 });
 
 export default GroupsScreen;

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { login } from '../../store/slices/authSlice';
-import { RootState } from '../../store';
+import { RootState, AppDispatch } from '../../store';
 import {
   StyleSheet,
   Text,
@@ -27,7 +27,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState('');
 
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const { status, error: authError } = useSelector((state: RootState) => state.auth);
   const isLoading = status === 'loading';
 
@@ -47,11 +47,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ navigation }) => {
     setLocalError('');
 
     try {
-      // Dispatch login action to Redux
-      dispatch(login({ email, password }));
+      // Dispatch login action to Redux and unwrap the result
+      await dispatch(login({ email, password })).unwrap();
       // Navigation will be handled by the Navigation component based on auth state
     } catch (err) {
       console.error('Login error:', err);
+      // Error is already handled by the auth state through the useEffect
     }
   };
 

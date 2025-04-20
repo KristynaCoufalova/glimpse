@@ -11,19 +11,41 @@ export const store = configureStore({
     videos: videosReducer,
     user: userReducer,
   },
-  middleware: (getDefaultMiddleware) =>
+  middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
       serializableCheck: {
         // Ignore these action types
         ignoredActions: [
-          'auth/login/fulfilled', 
+          'auth/login/fulfilled',
           'auth/signup/fulfilled',
-          'user/updateProfile/fulfilled'
+          'user/updateProfile/fulfilled',
+          'groups/createGroup/fulfilled',
+          'groups/fetchGroupById/fulfilled',
+          'groups/fetchUserGroups/fulfilled',
+          'videos/uploadVideo/fulfilled',
+          'videos/fetchVideosForGroup/fulfilled',
+          'videos/fetchFeedVideos/fulfilled',
         ],
         // Ignore these field paths in all actions
-        ignoredActionPaths: ['payload.user', 'meta.arg', 'payload.photoURL'],
+        ignoredActionPaths: [
+          'payload.user',
+          'meta.arg',
+          'payload.photoURL',
+          'payload.createdAt',
+          'payload.lastActivity',
+          'payload.members',
+          'payload.joinedAt',
+        ],
         // Ignore these paths in the state
-        ignoredPaths: ['auth.user', 'user.user.photoURL'],
+        ignoredPaths: [
+          'auth.user',
+          'user.user.photoURL',
+          'groups.groups',
+          'groups.currentGroup',
+          'videos.videos',
+          'videos.feedVideos',
+          'videos.currentVideo',
+        ],
       },
     }),
 });

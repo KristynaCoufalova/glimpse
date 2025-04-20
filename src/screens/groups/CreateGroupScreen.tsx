@@ -10,51 +10,98 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { createGroup } from '../../store/slices/groupsSlice';
+import { RootState } from '../../store';
+import * as ImagePicker from 'expo-image-picker';
 
 type CreateGroupScreenNavigationProp = StackNavigationProp<RootStackParamList>;
 
 const CreateGroupScreen: React.FC = () => {
   const navigation = useNavigation<CreateGroupScreenNavigationProp>();
+  const dispatch = useDispatch();
+  const { status, error } = useSelector((state: RootState) => state.groups);
+  const { user } = useSelector((state: RootState) => state.auth);
 
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [inviteEmails, setInviteEmails] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
+  const loading = status === 'loading';
+
+  // Handle image picker
+  const pickImage = async () => {
+    try {
+      // No permissions request is necessary for launching the image library
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.8,
+      });
+
+      // Safe check for both older and newer ImagePicker API results
+      if (!result.canceled) {
+        // Handle newer API (SDK 46+) with assets array
+        if (result.assets && result.assets.length > 0) {
+          setImage(result.assets[0].uri);
+        }
+        // For backward compatibility with older API versions
+        else if ((result as any).uri) {
+          setImage((result as any).uri);
+        }
+      }
+    } catch (error) {
+      console.error('Error picking an image:', error);
+      Alert.alert('Error', 'Failed to pick an image. Please try again.');
+    }
+  };
 
   const handleCreateGroup = async () => {
     // Validate inputs
     if (!groupName.trim()) {
-      setError('Please enter a group name');
+      Alert.alert('Error', 'Please enter a group name');
       return;
     }
 
-    setLoading(true);
-    setError(null);
+    if (!user || !user.uid) {
+      Alert.alert('Error', 'You must be logged in to create a group');
+      return;
+    }
 
     try {
-      // Simulate API call to create group
-      setTimeout(() => {
-        setLoading(false);
+      // Parse emails if provided
+      const emails = inviteEmails
+        .split(',')
+        .map(email => email.trim())
+        .filter(email => email.length > 0);
 
-        // In a real app, we would create the group in Firebase and navigate to the new group
-        Alert.alert('Group Created', `"${groupName}" has been created successfully.`, [
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-          },
-        ]);
-      }, 1500);
+      // Create group data
+      const groupData = {
+        name: groupName.trim(),
+        description: groupDescription.trim(),
+        userId: user.uid,
+        imageUri: image,
+        inviteEmails: emails.length > 0 ? emails : undefined,
+      };
+
+      // Dispatch create group action
+      await dispatch(createGroup(groupData) as any);
+      // Navigate back to groups list on success
+      if (status !== 'failed') {
+        navigation.goBack();
+        Alert.alert('Success', `Group "${groupName}" has been created successfully.`);
+      }
     } catch (err) {
-      setLoading(false);
-      setError('Failed to create group. Please try again.');
-      console.error('Create group error:', err);
+      console.error('Error creating group:', err);
+      Alert.alert('Error', 'Failed to create group. Please try again.');
     }
   };
 
@@ -66,6 +113,18 @@ const CreateGroupScreen: React.FC = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
       >
         <ScrollView contentContainerStyle={styles.scrollContent}>
+          {/* Group Photo */}
+          <TouchableOpacity style={styles.coverPhotoContainer} onPress={pickImage}>
+            {image ? (
+              <Image source={{ uri: image }} style={styles.coverPhoto} />
+            ) : (
+              <View style={styles.coverPhotoPlaceholder}>
+                <Ionicons name="image-outline" size={40} color="#999" />
+                <Text style={styles.coverPhotoText}>Add Group Cover Photo</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+
           <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>Group Information</Text>
 
@@ -98,7 +157,7 @@ const CreateGroupScreen: React.FC = () => {
 
             <Text style={styles.sectionTitle}>Invite Members</Text>
             <Text style={styles.sectionSubtitle}>
-              Add email addresses of people you'd like to invite (optional)
+              Add email addresses of people you&apos;d like to invite (separated by commas)
             </Text>
 
             <View style={styles.inputGroup}>
@@ -106,7 +165,7 @@ const CreateGroupScreen: React.FC = () => {
                 style={[styles.input, styles.textArea]}
                 value={inviteEmails}
                 onChangeText={setInviteEmails}
-                placeholder="Enter email addresses, separated by commas"
+                placeholder="e.g. friend@example.com, family@example.com"
                 multiline
                 numberOfLines={3}
               />
@@ -179,6 +238,31 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#fff',
     flex: 1,
+  },
+  coverPhoto: {
+    borderRadius: 12,
+    height: 150,
+    width: '100%',
+  },
+  coverPhotoContainer: {
+    marginBottom: 20,
+    width: '100%',
+  },
+  coverPhotoPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderColor: '#ddd',
+    borderRadius: 12,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    height: 150,
+    justifyContent: 'center',
+    width: '100%',
+  },
+  coverPhotoText: {
+    color: '#999',
+    fontSize: 16,
+    marginTop: 8,
   },
   createButton: {
     alignItems: 'center',

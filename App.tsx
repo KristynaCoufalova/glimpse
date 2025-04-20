@@ -1,14 +1,16 @@
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider, useDispatch } from 'react-redux';
+import { Provider, useDispatch, useSelector } from 'react-redux';
 import { store } from './src/store';
 import { NavigationContainer } from '@react-navigation/native';
 import Navigation from './src/navigation';
 import { LogBox } from 'react-native';
 import { ThemeProvider } from './src/theme/ThemeProvider';
-import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from './src/services/firebase/config';
-import { setUser } from './src/store/slices/userSlice';
+import { onAuthStateChanged } from 'firebase/auth';
+import { setUser } from './src/store/slices/authSlice';
+import { fetchUserGroups } from './src/store/slices/groupsSlice';
+import { fetchFeedVideos } from './src/store/slices/videosSlice';
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
@@ -17,30 +19,45 @@ LogBox.ignoreLogs([
   'Setting a timer for a long period of time',
 ]);
 
-// Auth state listener component
-const AuthStateListener = ({ children }: { children: React.ReactNode }) => {
+// Auth state wrapper component
+const AuthStateWrapper = ({ children }: { children: React.ReactNode }) => {
   const dispatch = useDispatch();
+  const { user } = useSelector((state: any) => state.auth);
 
+  // Listen for auth state changes
   useEffect(() => {
-    // Set up auth state listener
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
         // User is signed in
-        dispatch(setUser({
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        }));
+        const userData = {
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL
+        };
+        dispatch(setUser(userData));
+        
+        // Fetch user groups
+        dispatch(fetchUserGroups(firebaseUser.uid) as any);
+        
+        // Fetch feed videos
+        dispatch(fetchFeedVideos({ userId: firebaseUser.uid }) as any);
       } else {
         // User is signed out
         dispatch(setUser(null));
       }
     });
-
-    // Clean up listener on unmount
+    
+    // Cleanup subscription
     return () => unsubscribe();
   }, [dispatch]);
+
+  // Fetch groups when user changes
+  useEffect(() => {
+    if (user) {
+      dispatch(fetchUserGroups(user.uid) as any);
+    }
+  }, [user, dispatch]);
 
   return <>{children}</>;
 };
@@ -51,9 +68,9 @@ export default function App() {
       <ThemeProvider>
         <SafeAreaProvider>
           <NavigationContainer>
-            <AuthStateListener>
+            <AuthStateWrapper>
               <Navigation />
-            </AuthStateListener>
+            </AuthStateWrapper>
           </NavigationContainer>
         </SafeAreaProvider>
       </ThemeProvider>
