@@ -204,8 +204,20 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
       statusBarStyle="light-content" 
       statusBarColor="#000"
     >
-      {/* Group filters at top */}
-      {renderGroupFilter()}
+      {/* Header with notification icon */}
+      <View style={styles.headerContainer}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Feed</Text>
+          <TouchableOpacity 
+            style={styles.notificationIcon}
+            onPress={() => navigation.navigate('Notifications' as any)}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+        </View>
+        {/* Group filters */}
+        {renderGroupFilter()}
+      </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -292,8 +304,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  groupFilterContainer: {
+  headerContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
     paddingTop: 10,
+    zIndex: 10,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  notificationIcon: {
+    padding: 5,
+  },
+  groupFilterContainer: {
+    paddingTop: 5,
     zIndex: 10,
   },
   groupFilterItem: {

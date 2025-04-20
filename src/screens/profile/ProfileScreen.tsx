@@ -99,6 +99,12 @@ const ProfileScreen: React.FC = () => {
     <SafeScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
+        <TouchableOpacity 
+          onPress={() => navigation.navigate('Notifications')}
+          style={styles.notificationIcon}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#333" />
+        </TouchableOpacity>
       </View>
       
       {isLoading || loading ? (
@@ -280,11 +286,15 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
+  },
+  notificationIcon: {
+    padding: 5,
   },
   headerTitle: {
     fontSize: 18,

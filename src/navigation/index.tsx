@@ -18,6 +18,7 @@ import OnboardingScreen from '../screens/auth/OnboardingScreen';
 import PrivacyPolicyScreen from '../screens/legal/PrivacyPolicyScreen';
 import TermsOfServiceScreen from '../screens/legal/TermsOfServiceScreen';
 import HelpSupportScreen from '../screens/support/HelpSupportScreen';
+import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 
 // Define types for navigation
 export type RootStackParamList = {
@@ -31,6 +32,7 @@ export type RootStackParamList = {
   PrivacyPolicy: undefined;
   TermsOfService: undefined;
   HelpSupport: undefined;
+  Notifications: undefined;
 };
 
 export type AuthStackParamList = {
@@ -41,6 +43,7 @@ export type AuthStackParamList = {
 export type MainTabParamList = {
   Feed: undefined;
   Groups: undefined;
+  Notifications: undefined;
   Profile: undefined;
 };
 
@@ -61,6 +64,7 @@ const AuthNavigator = () => {
 
 // Main tab navigator
 const MainTabNavigator = () => {
+  // We don't need navigation here anymore since we removed the headerRight prop
   return (
     <MainTab.Navigator
       screenOptions={({ route }) => ({
@@ -71,6 +75,8 @@ const MainTabNavigator = () => {
             iconName = focused ? 'play-circle' : 'play-circle-outline';
           } else if (route.name === 'Groups') {
             iconName = focused ? 'people' : 'people-outline';
+          } else if (route.name === 'Notifications') {
+            iconName = focused ? 'notifications' : 'notifications-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -80,6 +86,8 @@ const MainTabNavigator = () => {
         tabBarActiveTintColor: '#4ECDC4', // Soft teal primary color
         tabBarInactiveTintColor: 'gray',
         headerShown: false,
+        // Removing the headerRight prop as we don't need the notification icon in the tab navigator header
+        // Individual screens will have their own headers with notification icons
       })}
     >
       <MainTab.Screen name="Feed" component={FeedScreen} />
@@ -154,6 +162,14 @@ const Navigation = () => {
             <RootStack.Screen
               name="HelpSupport"
               component={HelpSupportScreen}
+              options={{
+                headerShown: false,
+                presentation: 'card',
+              }}
+            />
+            <RootStack.Screen
+              name="Notifications"
+              component={NotificationsScreen}
               options={{
                 headerShown: false,
                 presentation: 'card',

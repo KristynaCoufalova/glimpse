@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice';
 import groupsReducer from './slices/groupsSlice';
 import videosReducer from './slices/videosSlice';
 import userReducer from './slices/userSlice';
+import notificationsReducer from './slices/notificationsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     groups: groupsReducer,
     videos: videosReducer,
     user: userReducer,
+    notifications: notificationsReducer,
   },
   middleware: getDefaultMiddleware =>
     getDefaultMiddleware({
@@ -25,6 +27,8 @@ export const store = configureStore({
           'videos/uploadVideo/fulfilled',
           'videos/fetchVideosForGroup/fulfilled',
           'videos/fetchFeedVideos/fulfilled',
+          'notifications/fetchGroupInvitations/fulfilled',
+          'notifications/respondToGroupInvitation/fulfilled',
         ],
         // Ignore these field paths in all actions
         ignoredActionPaths: [
@@ -35,6 +39,8 @@ export const store = configureStore({
           'payload.lastActivity',
           'payload.members',
           'payload.joinedAt',
+          'payload.createdAt',
+          'payload.invitations',
         ],
         // Ignore these paths in the state
         ignoredPaths: [
@@ -45,6 +51,7 @@ export const store = configureStore({
           'videos.videos',
           'videos.feedVideos',
           'videos.currentVideo',
+          'notifications.invitations',
         ],
       },
     }),

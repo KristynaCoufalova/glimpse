@@ -140,10 +140,18 @@ const GroupsScreen: React.FC = () => {
     <SafeScreen style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Groups</Text>
-        <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
-          <Ionicons name="add" size={24} color="#fff" />
-          <Text style={styles.createButtonText}>Create</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRightContainer}>
+          <TouchableOpacity 
+            style={styles.notificationIcon} 
+            onPress={() => navigation.navigate('Notifications')}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#333" />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
+            <Ionicons name="add" size={24} color="#fff" />
+            <Text style={styles.createButtonText}>Create</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -207,6 +215,14 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 36,
     fontWeight: 'bold',
+  },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  notificationIcon: {
+    padding: 5,
+    marginRight: 10,
   },
   createButton: {
     alignItems: 'center',
