@@ -65,7 +65,7 @@ const EditProfileScreen: React.FC = () => {
   const handleSelectImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -91,6 +91,7 @@ const EditProfileScreen: React.FC = () => {
       }
       
       const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -159,24 +160,34 @@ const EditProfileScreen: React.FC = () => {
         birthday: birthday ? birthday.toISOString() : null
       };
       
-      // Dispatch the update action
-      const resultAction = await dispatch(updateProfile(updateData));
-      
-      // Check if the action was fulfilled
-      if (updateProfile.fulfilled.match(resultAction)) {
-        setLoading(false);
-        Alert.alert(
-          'Success',
-          'Your profile has been updated successfully',
-          [
-            {
-              text: 'OK',
-              onPress: () => navigation.goBack()
-            }
-          ]
-        );
-      } else {
-        throw new Error('Failed to update profile');
+      try {
+        // Dispatch the update action
+        // Add type assertion to avoid dispatch type issues
+        const resultAction = await dispatch(updateProfile(updateData) as any);
+        
+        // Check if the action was fulfilled
+        if (updateProfile.fulfilled.match(resultAction)) {
+          setLoading(false);
+          Alert.alert(
+            'Success',
+            'Your profile has been updated successfully',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.goBack()
+              }
+            ]
+          );
+        } else if (resultAction.error) {
+          console.error('Error details:', resultAction.error);
+          console.error('Error in resultAction:', JSON.stringify(resultAction.error, null, 2));
+          throw new Error('Failed to update profile: ' + (resultAction.error.toString() || 'Unknown error'));
+        } else {
+          throw new Error('Failed to update profile');
+        }
+      } catch (error) {
+        console.error('Error in profile update dispatch:', error);
+        throw error; // Re-throw to be caught by outer catch block
       }
     } catch (error) {
       setLoading(false);

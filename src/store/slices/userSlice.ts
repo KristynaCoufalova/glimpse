@@ -88,13 +88,31 @@ export const updateProfile = createAsyncThunk(
       // If photoURL starts with 'file://' or 'content://', it's a local file
       if (photoURL && (photoURL.startsWith('file://') || photoURL.startsWith('content://'))) {
         try {
+          // Ensure the user is properly authenticated by getting a fresh token
+          await currentUser.getIdToken(true);
+          
           // Upload image to Firebase Storage
           const blob = await uriToBlob(photoURL);
-          const imageRef = ref(storage, `profile_pictures/${currentUser.uid}/${Date.now()}.jpg`);
-          await uploadBytes(imageRef, blob);
+          const timestamp = Date.now();
+          const imageRef = ref(storage, `profile_pictures/${currentUser.uid}/${timestamp}.jpg`);
+          
+          // Upload with metadata to ensure proper content type
+          await uploadBytes(imageRef, blob, {
+            contentType: 'image/jpeg',
+            customMetadata: {
+              'uploadedBy': currentUser.uid,
+              'timestamp': timestamp.toString()
+            }
+          });
+          
           photoURL = await getDownloadURL(imageRef);
+          console.log('Successfully uploaded profile picture to:', imageRef.fullPath);
         } catch (error) {
           console.error('Error uploading profile picture:', error);
+          // If it's an unauthorized error, log additional details
+          if (error.code === 'storage/unauthorized') {
+            console.error('Permission denied. User may not be properly authenticated or does not have permission to upload to this location');
+          }
           // Continue without updating photo if upload fails
           photoURL = currentUser.photoURL;
         }

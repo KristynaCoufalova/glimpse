@@ -40,8 +40,8 @@ const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch();
   const [loading, setLoading] = useState(false);
   
-  // Use our custom hook to get profile data and refresh it when screen comes into focus
-  const { user, isLoading } = useProfile(true);
+  // Use our custom hook to get profile data
+  const { user, isLoading } = useProfile();
   
   // Initialize notification settings
   const [notificationSettings, setNotificationSettings] = useState(DEFAULT_NOTIFICATION_SETTINGS);
@@ -79,7 +79,8 @@ const ProfileScreen: React.FC = () => {
             setLoading(true);
             
             // Dispatch the signOut action
-            dispatch(signOut())
+            // Add type assertion to resolve dispatch type issues
+            dispatch(signOut() as any)
               .finally(() => {
                 setLoading(false);
               });
