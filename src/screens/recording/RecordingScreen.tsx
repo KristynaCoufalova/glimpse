@@ -13,8 +13,7 @@ import {
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
-import * as ExpoCamera from 'expo-camera';
-import { CameraView } from 'expo-camera';
+import { Camera, CameraView, type CameraType } from 'expo-camera';
 import { useNavigation, StackActions, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
@@ -35,7 +34,7 @@ const RecordingScreen: React.FC = () => {
   const navigation = useNavigation<RecordingScreenNavigationProp>();
   const route = useRoute<RecordingScreenRouteProp>();
   const dispatch = useDispatch();
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<CameraView | null>(null);
   
   // Get user and groups from Redux
   const { user } = useSelector((state: RootState) => state.auth);
@@ -45,8 +44,8 @@ const RecordingScreen: React.FC = () => {
   const initialSelectedGroups = route.params?.selectedGroupIds || [];
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [cameraType, setCameraType] = useState(ExpoCamera.CameraType.front);
-  const [flashMode, setFlashMode] = useState(ExpoCamera.FlashMode.off);
+  const [cameraType, setCameraType] = useState('front');
+  const [flashMode, setFlashMode] = useState('off');
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [recordingTimer, setRecordingTimer] = useState<NodeJS.Timeout | null>(null);
@@ -60,8 +59,8 @@ const RecordingScreen: React.FC = () => {
   // Request camera permissions
   useEffect(() => {
     (async () => {
-      const { status } = await ExpoCamera.Camera.requestCameraPermissionsAsync();
-      const { status: micStatus } = await ExpoCamera.Camera.requestMicrophonePermissionsAsync();
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      const { status: micStatus } = await Camera.requestMicrophonePermissionsAsync();
       setHasPermission(status === 'granted' && micStatus === 'granted');
     })();
   }, []);
@@ -77,12 +76,12 @@ const RecordingScreen: React.FC = () => {
 
   // Toggle camera type (front/back)
   const toggleCameraType = () => {
-    setCameraType(current => (current === ExpoCamera.CameraType.back ? ExpoCamera.CameraType.front : ExpoCamera.CameraType.back));
+    setCameraType(current => (current === 'back' ? 'front' : 'back'));
   };
 
   // Toggle flash mode
   const toggleFlashMode = () => {
-    setFlashMode(current => (current === ExpoCamera.FlashMode.off ? ExpoCamera.FlashMode.torch : ExpoCamera.FlashMode.off));
+    setFlashMode(current => (current === 'off' ? 'torch' : 'off'));
   };
 
   // Start recording
@@ -109,10 +108,11 @@ const RecordingScreen: React.FC = () => {
       // Start recording
       const video = await cameraRef.current.recordAsync({
         maxDuration: MAX_DURATION,
-        quality: '720p',
       });
 
-      setVideoUri(video.uri);
+      if (video && video.uri) {
+        setVideoUri(video.uri);
+      }
     } catch (error) {
       console.error('Error recording video:', error);
       Alert.alert('Error', 'Failed to record video. Please try again.');
@@ -169,7 +169,7 @@ const RecordingScreen: React.FC = () => {
         groupIds: selectedGroups,
         userId: user.uid,
         duration: recordingDuration || 30, // Use actual duration or a default
-        promptId: undefined // If using a prompt, store its ID here
+        promptId: undefined, // If using a prompt, store its ID here
       };
 
       // Upload the video
@@ -294,46 +294,45 @@ const RecordingScreen: React.FC = () => {
         <View style={styles.cameraContainer}>
           <CameraView
             style={styles.camera}
-            type={cameraType}
-            flashMode={flashMode}
+            facing={cameraType as CameraType}
             ref={cameraRef}
-          />
-
-          {/* Recording timer */}
-          {isRecording && (
-            <View style={styles.timerContainer}>
-              <View style={styles.timerBadge}>
-                <Text style={styles.timerText}>
-                  {formatTime(recordingDuration)} / {formatTime(MAX_DURATION)}
-                </Text>
+          >
+            {/* Recording timer */}
+            {isRecording && (
+              <View style={styles.timerContainer}>
+                <View style={styles.timerBadge}>
+                  <Text style={styles.timerText}>
+                    {formatTime(recordingDuration)} / {formatTime(MAX_DURATION)}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.progressBar,
+                    { width: `${(recordingDuration / MAX_DURATION) * 100}%` },
+                  ]}
+                />
               </View>
-              <View
-                style={[
-                  styles.progressBar,
-                  { width: `${(recordingDuration / MAX_DURATION) * 100}%` },
-                ]}
-              />
+            )}
+
+            {/* Camera controls */}
+            <View style={styles.cameraControls}>
+              <TouchableOpacity style={styles.controlButton} onPress={handleClose}>
+                <Ionicons name="close" size={28} color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.controlButton} onPress={toggleFlashMode}>
+                <Ionicons name={flashMode === 'off' ? "flash-off" : "flash"} size={28} color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.controlButton} onPress={toggleCameraType}>
+                <Ionicons name="camera-reverse" size={28} color="#fff" />
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.controlButton} onPress={() => setShowPrompt(true)}>
+                <Ionicons name="help-circle" size={28} color="#fff" />
+              </TouchableOpacity>
             </View>
-          )}
-
-          {/* Camera controls */}
-          <View style={styles.cameraControls}>
-            <TouchableOpacity style={styles.controlButton} onPress={handleClose}>
-              <Ionicons name="close" size={28} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={toggleFlashMode}>
-              <Ionicons name={flashMode === ExpoCamera.FlashMode.off ? "flash-off" : "flash"} size={28} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={toggleCameraType}>
-              <Ionicons name="camera-reverse" size={28} color="#fff" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.controlButton} onPress={() => setShowPrompt(true)}>
-              <Ionicons name="help-circle" size={28} color="#fff" />
-            </TouchableOpacity>
-          </View>
+          </CameraView>
 
           {/* Record button */}
           <View style={styles.recordButtonContainer}>
