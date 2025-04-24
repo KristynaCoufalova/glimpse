@@ -7,10 +7,10 @@ import {
   getDocs,
   query,
   where,
-  updateDoc,
   Timestamp,
   serverTimestamp,
   FieldValue,
+  collectionGroup,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { firestore, storage } from '../../services/firebase/config';
@@ -102,6 +102,14 @@ export const createGroup = createAsyncThunk(
 
       // Save the group to Firestore
       await setDoc(groupRef, newGroup);
+      
+      // Also create a document in the members subcollection for the admin
+      const memberDocRef = doc(firestore, `groups/${groupRef.id}/members/${data.userId}`);
+      await setDoc(memberDocRef, {
+        id: data.userId,
+        role: 'admin',
+        joinedAt: now,
+      });
 
       // Create invitations if emails are provided
       if (data.inviteEmails && data.inviteEmails.length > 0) {
@@ -140,21 +148,32 @@ export const fetchUserGroups = createAsyncThunk(
   'groups/fetchUserGroups',
   async (userId: string, { rejectWithValue }) => {
     try {
-      // Query groups where the user is a member
-      const groupsQuery = query(
-        collection(firestore, 'groups'),
-        where(`members.${userId}.id`, '==', userId)
-      );
-
-      const groupsSnapshot = await getDocs(groupsQuery);
       const groups: Group[] = [];
-
-      groupsSnapshot.forEach(doc => {
-        groups.push({
-          id: doc.id,
-          ...doc.data(),
-        } as Group);
-      });
+      
+      // First, get all the member documents for this user
+      const memberQuery = query(
+        collectionGroup(firestore, 'members'),
+        where('id', '==', userId)
+      );
+      
+      const memberDocs = await getDocs(memberQuery);
+      
+      // For each member document, get the parent group
+      for (const memberDoc of memberDocs.docs) {
+        // Get the parent path to extract the group ID
+        const parentPath = memberDoc.ref.parent.parent;
+        if (parentPath) {
+          const groupId = parentPath.id;
+          const groupDoc = await getDoc(doc(firestore, 'groups', groupId));
+          
+          if (groupDoc.exists()) {
+            groups.push({
+              id: groupDoc.id,
+              ...groupDoc.data(),
+            } as Group);
+          }
+        }
+      }
 
       return groups;
     } catch (error) {
@@ -170,16 +189,34 @@ export const fetchGroupById = createAsyncThunk(
   'groups/fetchGroupById',
   async (groupId: string, { rejectWithValue }) => {
     try {
+      // Fetch group document
       const groupRef = doc(firestore, 'groups', groupId);
       const groupSnapshot = await getDoc(groupRef);
 
       if (!groupSnapshot.exists()) {
         return rejectWithValue('Group not found');
       }
-
+      
+      // Fetch members from subcollection
+      const membersRef = collection(firestore, `groups/${groupId}/members`);
+      const membersSnapshot = await getDocs(query(membersRef));
+      
+      // Create members map
+      const members: Record<string, GroupMember> = {};
+      membersSnapshot.forEach(doc => {
+        members[doc.id] = {
+          id: doc.id,
+          ...doc.data(),
+        } as GroupMember;
+      });
+      
+      // Return combined group data
+      const groupData = groupSnapshot.data();
+      
       return {
         id: groupSnapshot.id,
-        ...groupSnapshot.data(),
+        ...groupData,
+        members: { ...members },
       } as Group;
     } catch (error) {
       if (error instanceof Error) {
@@ -333,7 +370,7 @@ const groupsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
-  }
+  },
 });
 
 export const { setCurrentGroup, clearGroupsError, updateGroupLastActivity } = groupsSlice.actions;

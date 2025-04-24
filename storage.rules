@@ -12,5 +12,16 @@ service firebase.storage {
       allow read: if true;  // Anyone can view profile pictures
       allow write: if request.auth != null && request.auth.uid == userId;  // Only authenticated user can upload their own pictures
     }
+    
+    // Allow access to group photos
+    match /group_photos/{groupId}/{fileName} {
+      // Anyone can view group photos
+      allow read: if true;
+      
+      // Only authenticated members can upload group photos
+      // Ideally, we would check if user is a group admin, but we can't query Firestore from Storage rules
+      // So we just check if they're authenticated
+      allow write: if request.auth != null;
+    }
   }
 }

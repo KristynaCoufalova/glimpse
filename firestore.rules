@@ -22,10 +22,48 @@ service cloud.firestore {
       allow read: if request.auth != null && 
                   exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
       
-      // Only group admins can add/remove members
-      allow write: if request.auth != null && 
-                   exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
-                   get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin";
+      // Users can create their own member document when accepting an invitation
+      allow create: if request.auth != null && 
+                    memberId == request.auth.uid &&
+                    (
+                      // Either they have a pending invitation
+                      exists(/databases/$(database)/documents/invites/$(getInviteForUser(request.auth.uid, groupId))) ||
+                      // Or they are an admin (for creating the first member)
+                      (
+                        exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+                        get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin"
+                      )
+                    );
+      
+      // Only group admins can update or delete members
+      allow update, delete: if request.auth != null && 
+                           exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+                           get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Invites collection for group invitations
+    match /invites/{inviteId} {
+      // Anyone can read their own invitations (by email)
+      allow read: if request.auth != null && 
+                  get(/databases/$(database)/documents/invites/$(inviteId)).data.email == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email;
+      
+      // Users can update invitation status when accepting/declining
+      allow update: if request.auth != null &&
+                    get(/databases/$(database)/documents/invites/$(inviteId)).data.email == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+      
+      // Only group admins can create invitations
+      allow create: if request.auth != null &&
+                    exists(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/members/$(request.auth.uid)) &&
+                    get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Helper function to find an invitation for a user and group
+    function getInviteForUser(userId, groupId) {
+      return query(/databases/$(database)/documents/invites, 
+        where('email', '==', get(/databases/$(database)/documents/users/$(userId)).data.email),
+        where('groupId', '==', groupId),
+        where('status', '==', 'pending')).size() > 0;
     }
     
     // Videos - users can see videos from their groups, create their own

@@ -23,6 +23,9 @@ import { fetchGroupById, inviteMember } from '../../store/slices/groupsSlice';
 import { fetchVideosForGroup } from '../../store/slices/videosSlice';
 import { isValidEmail } from '../../utils';
 import { COLORS } from '../../constants';
+import { collection, getDocs, query } from 'firebase/firestore';
+import { firestore } from '../../services/firebase/config';
+import { User } from '../../store/slices/userSlice';
 
 type GroupDetailScreenRouteProp = RouteProp<RootStackParamList, 'GroupDetail'>;
 type GroupDetailScreenNavigationProp = StackNavigationProp<RootStackParamList>;
@@ -43,6 +46,9 @@ const GroupDetailScreen: React.FC = () => {
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
+  const [groupMembers, setGroupMembers] = useState<any[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<{[key: string]: User}>({});
 
   const loading = groupStatus === 'loading' || videosStatus === 'loading';
 
@@ -53,6 +59,67 @@ const GroupDetailScreen: React.FC = () => {
       dispatch(fetchVideosForGroup({ groupId }) as any);
     }
   }, [dispatch, groupId, user]);
+
+  // Fetch group members from subcollection when group changes
+  useEffect(() => {
+    const fetchGroupMembers = async () => {
+      if (!groupId) return;
+      
+      setMembersLoading(true);
+      try {
+        const membersRef = collection(firestore, `groups/${groupId}/members`);
+        const membersSnapshot = await getDocs(query(membersRef));
+        
+        const members: any[] = [];
+        membersSnapshot.forEach(doc => {
+          members.push({
+            id: doc.id,
+            ...doc.data()
+          });
+        });
+        
+        setGroupMembers(members);
+        
+        // Fetch user profiles for each member
+        const userIds = members.map(member => member.id);
+        await fetchUserProfiles(userIds);
+      } catch (error) {
+        console.error('Error fetching group members:', error);
+      } finally {
+        setMembersLoading(false);
+      }
+    };
+    
+    if (group) {
+      fetchGroupMembers();
+    }
+  }, [group, groupId]);
+
+  // Fetch user profiles for members
+  const fetchUserProfiles = async (userIds: string[]) => {
+    try {
+      const profiles: {[key: string]: User} = {};
+      
+      for (const userId of userIds) {
+        const userRef = collection(firestore, 'users');
+        const userQuery = query(userRef);
+        const userSnapshot = await getDocs(userQuery);
+        
+        userSnapshot.forEach(doc => {
+          if (doc.id === userId) {
+            profiles[userId] = {
+              uid: doc.id,
+              ...doc.data()
+            } as User;
+          }
+        });
+      }
+      
+      setUserProfiles(profiles);
+    } catch (error) {
+      console.error('Error fetching user profiles:', error);
+    }
+  };
 
   const handleRecordVideo = () => {
     // Pass the current group ID to the recording screen
@@ -116,10 +183,10 @@ const GroupDetailScreen: React.FC = () => {
 
   // Check if current user is admin
   const isCurrentUserAdmin = () => {
-    if (!group || !user) return false;
-    return group.members && 
-           group.members[user.uid] && 
-           group.members[user.uid].role === 'admin';
+    if (!groupMembers || !user) return false;
+    
+    const currentUserMember = groupMembers.find(member => member.id === user.uid);
+    return currentUserMember && currentUserMember.role === 'admin';
   };
 
   const renderVideoItem = ({ item }: { item: any }) => {
@@ -185,9 +252,14 @@ const GroupDetailScreen: React.FC = () => {
 
   // Function to render members
   const renderMembers = () => {
-    if (!group || !group.members) return null;
-    
-    const memberArray = Object.values(group.members);
+    if (membersLoading) {
+      return (
+        <View style={styles.loadingMembersContainer}>
+          <ActivityIndicator size="small" color={COLORS.primary} />
+          <Text style={styles.loadingMembersText}>Loading members...</Text>
+        </View>
+      );
+    }
     
     return (
       <ScrollView
@@ -195,19 +267,32 @@ const GroupDetailScreen: React.FC = () => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.membersScrollContent}
       >
-        {memberArray.map((member: any) => (
-          <View key={member.id} style={styles.memberItem}>
-            <View style={styles.memberAvatar} />
-            <Text style={styles.memberName}>
-              {member.id === user?.uid ? 'You' : 'Member'}
-            </Text>
-            {member.role === 'admin' && (
-              <View style={styles.adminBadge}>
-                <Text style={styles.adminBadgeText}>Admin</Text>
-              </View>
-            )}
-          </View>
-        ))}
+        {groupMembers.map((member: any) => {
+          const memberProfile = userProfiles[member.id];
+          const displayName = memberProfile?.displayName || 'Member';
+          const photoURL = memberProfile?.photoURL;
+          const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase();
+          
+          return (
+            <View key={member.id} style={styles.memberItem}>
+              {photoURL ? (
+                <Image source={{ uri: photoURL }} style={styles.memberAvatar} />
+              ) : (
+                <View style={styles.memberAvatarPlaceholder}>
+                  <Text style={styles.memberAvatarInitials}>{initials}</Text>
+                </View>
+              )}
+              <Text style={styles.memberName}>
+                {member.id === user?.uid ? 'You' : displayName}
+              </Text>
+              {member.role === 'admin' && (
+                <View style={styles.adminBadge}>
+                  <Text style={styles.adminBadgeText}>Admin</Text>
+                </View>
+              )}
+            </View>
+          );
+        })}
         
         {isCurrentUserAdmin() && (
           <TouchableOpacity 
@@ -284,7 +369,7 @@ const GroupDetailScreen: React.FC = () => {
         {/* Members section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>
-            Members ({group.members ? Object.keys(group.members).length : 0})
+            Members ({groupMembers.length})
           </Text>
           {renderMembers()}
         </View>
@@ -529,12 +614,37 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
   },
+  loadingMembersContainer: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  loadingMembersText: {
+    color: '#666',
+    fontSize: 14,
+    marginLeft: 10,
+  },
   memberAvatar: {
     backgroundColor: '#ddd',
     borderRadius: 30,
     height: 60,
     marginBottom: 8,
     width: 60,
+  },
+  memberAvatarPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: COLORS.primary,
+    borderRadius: 30,
+    height: 60,
+    justifyContent: 'center',
+    marginBottom: 8,
+    width: 60,
+  },
+  memberAvatarInitials: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   memberItem: {
     alignItems: 'center',
