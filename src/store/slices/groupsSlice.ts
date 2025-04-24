@@ -10,7 +10,6 @@ import {
   Timestamp,
   serverTimestamp,
   FieldValue,
-  collectionGroup,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { firestore, storage } from '../../services/firebase/config';
@@ -100,10 +99,12 @@ export const createGroup = createAsyncThunk(
         },
       };
 
-      // Save the group to Firestore
+      // Save the group to Firestore with embedded members approach
+      console.log('Creating new group with embedded member:', data.userId);
       await setDoc(groupRef, newGroup);
       
-      // Also create a document in the members subcollection for the admin
+      // Also create a document in the members subcollection for backward compatibility
+      console.log('Creating member subcollection entry for backward compatibility');
       const memberDocRef = doc(firestore, `groups/${groupRef.id}/members/${data.userId}`);
       await setDoc(memberDocRef, {
         id: data.userId,
@@ -148,33 +149,27 @@ export const fetchUserGroups = createAsyncThunk(
   'groups/fetchUserGroups',
   async (userId: string, { rejectWithValue }) => {
     try {
+      console.log('Fetching groups for user:', userId);
       const groups: Group[] = [];
       
-      // First, get all the member documents for this user
-      const memberQuery = query(
-        collectionGroup(firestore, 'members'),
-        where('id', '==', userId)
-      );
+      // Query groups directly where the user is a member in the embedded members map
+      const groupsCollection = collection(firestore, 'groups');
+      // We can't directly query on map fields in Firestore, so we have to get all groups
+      // and filter them in the client
+      const groupsSnapshot = await getDocs(groupsCollection);
       
-      const memberDocs = await getDocs(memberQuery);
-      
-      // For each member document, get the parent group
-      for (const memberDoc of memberDocs.docs) {
-        // Get the parent path to extract the group ID
-        const parentPath = memberDoc.ref.parent.parent;
-        if (parentPath) {
-          const groupId = parentPath.id;
-          const groupDoc = await getDoc(doc(firestore, 'groups', groupId));
-          
-          if (groupDoc.exists()) {
-            groups.push({
-              id: groupDoc.id,
-              ...groupDoc.data(),
-            } as Group);
-          }
+      groupsSnapshot.forEach(doc => {
+        const groupData = doc.data();
+        // Check if this user is in the members map
+        if (groupData.members && groupData.members[userId]) {
+          groups.push({
+            id: doc.id,
+            ...groupData,
+          } as Group);
         }
-      }
-
+      });
+      
+      console.log(`Found ${groups.length} groups for user ${userId}`);
       return groups;
     } catch (error) {
       if (error instanceof Error) {
@@ -189,34 +184,23 @@ export const fetchGroupById = createAsyncThunk(
   'groups/fetchGroupById',
   async (groupId: string, { rejectWithValue }) => {
     try {
+      console.log(`Fetching group by ID: ${groupId}`);
       // Fetch group document
       const groupRef = doc(firestore, 'groups', groupId);
       const groupSnapshot = await getDoc(groupRef);
 
       if (!groupSnapshot.exists()) {
+        console.log(`Group not found: ${groupId}`);
         return rejectWithValue('Group not found');
       }
       
-      // Fetch members from subcollection
-      const membersRef = collection(firestore, `groups/${groupId}/members`);
-      const membersSnapshot = await getDocs(query(membersRef));
-      
-      // Create members map
-      const members: Record<string, GroupMember> = {};
-      membersSnapshot.forEach(doc => {
-        members[doc.id] = {
-          id: doc.id,
-          ...doc.data(),
-        } as GroupMember;
-      });
-      
-      // Return combined group data
+      // Use only the embedded members data from the group document
       const groupData = groupSnapshot.data();
+      console.log(`Found group: ${groupId}, has members:`, !!groupData.members);
       
       return {
         id: groupSnapshot.id,
         ...groupData,
-        members: { ...members },
       } as Group;
     } catch (error) {
       if (error instanceof Error) {
@@ -296,6 +280,13 @@ const groupsSlice = createSlice({
         state.currentGroup.lastActivity = Timestamp.now();
       }
     },
+    resetGroups: state => {
+      // Reset groups state when user logs out
+      state.groups = [];
+      state.currentGroup = null;
+      state.status = 'idle';
+      state.error = null;
+    },
   },
   extraReducers: builder => {
     // Create group
@@ -373,5 +364,10 @@ const groupsSlice = createSlice({
   },
 });
 
-export const { setCurrentGroup, clearGroupsError, updateGroupLastActivity } = groupsSlice.actions;
+export const { 
+  setCurrentGroup, 
+  clearGroupsError, 
+  updateGroupLastActivity, 
+  resetGroups 
+} = groupsSlice.actions;
 export default groupsSlice.reducer;
