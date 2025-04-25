@@ -10,6 +10,7 @@ import {
   Timestamp,
   serverTimestamp,
   FieldValue,
+  writeBatch,
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { firestore, storage } from '../../services/firebase/config';
@@ -53,6 +54,11 @@ interface InviteMemberData {
   userId: string;
 }
 
+interface DeleteGroupData {
+  groupId: string;
+  userId: string;
+}
+
 // Helper function to convert image URI to blob
 const uriToBlob = async (uri: string): Promise<Blob> => {
   return fetch(uri).then(response => response.blob());
@@ -66,7 +72,6 @@ export const createGroup = createAsyncThunk(
       // Create a new group document reference
       const groupRef = doc(collection(firestore, 'groups'));
       const now = serverTimestamp();
-      
       // Upload image if provided
       let photoURL = null;
       if (data.imageUri) {
@@ -102,15 +107,7 @@ export const createGroup = createAsyncThunk(
       // Save the group to Firestore with embedded members approach
       console.log('Creating new group with embedded member:', data.userId);
       await setDoc(groupRef, newGroup);
-      
-      // Also create a document in the members subcollection for backward compatibility
-      console.log('Creating member subcollection entry for backward compatibility');
-      const memberDocRef = doc(firestore, `groups/${groupRef.id}/members/${data.userId}`);
-      await setDoc(memberDocRef, {
-        id: data.userId,
-        role: 'admin',
-        joinedAt: now,
-      });
+      // Members subcollection is deprecated according to firestore rules
 
       // Create invitations if emails are provided
       if (data.inviteEmails && data.inviteEmails.length > 0) {
@@ -150,27 +147,36 @@ export const fetchUserGroups = createAsyncThunk(
   async (userId: string, { rejectWithValue }) => {
     try {
       console.log('Fetching groups for user:', userId);
-      const groups: Group[] = [];
-      
-      // Query groups directly where the user is a member in the embedded members map
-      const groupsCollection = collection(firestore, 'groups');
-      // We can't directly query on map fields in Firestore, so we have to get all groups
-      // and filter them in the client
-      const groupsSnapshot = await getDocs(groupsCollection);
-      
+      const groupsMap = new Map<string, any>();
+      // Query for groups where user is in embedded members map
+      console.log('Querying for membership in embedded members map');
+      const groupsRef = collection(firestore, 'groups');
+      const groupsSnapshot = await getDocs(groupsRef);
+      // Check each group for embedded membership
       groupsSnapshot.forEach(doc => {
+        const groupId = doc.id;
+        // Skip if already added from subcollection
+        if (groupsMap.has(groupId)) {
+          return;
+        }
         const groupData = doc.data();
-        // Check if this user is in the members map
-        if (groupData.members && groupData.members[userId]) {
-          groups.push({
-            id: doc.id,
+        // Carefully check for embedded membership - handle potential undefined
+        if (
+          groupData.members &&
+          typeof groupData.members === 'object' &&
+          groupData.members[userId]
+        ) {
+          console.log(`User is member of group ${groupId} in embedded members map`);
+          groupsMap.set(groupId, {
+            id: groupId,
             ...groupData,
-          } as Group);
+          });
         }
       });
-      
-      console.log(`Found ${groups.length} groups for user ${userId}`);
-      return groups;
+      // Members subcollection is deprecated, use only embedded members
+      const finalGroups = Array.from(groupsMap.values());
+      console.log(`Found ${finalGroups.length} total groups for user ${userId}`);
+      return finalGroups;
     } catch (error) {
       if (error instanceof Error) {
         return rejectWithValue(error.message);
@@ -193,15 +199,55 @@ export const fetchGroupById = createAsyncThunk(
         console.log(`Group not found: ${groupId}`);
         return rejectWithValue('Group not found');
       }
-      
-      // Use only the embedded members data from the group document
+      // Get group data with embedded members map
       const groupData = groupSnapshot.data();
-      console.log(`Found group: ${groupId}, has members:`, !!groupData.members);
-      
+      console.log(`Found group: ${groupId}, has embedded members:`, !!groupData.members);
+      // Members subcollection is deprecated, only use embedded members
+      const members = groupData.members || {};
+      console.log(`Group has ${Object.keys(members).length} members`);
       return {
         id: groupSnapshot.id,
         ...groupData,
+        members,
       } as Group;
+    } catch (error) {
+      if (error instanceof Error) {
+        return rejectWithValue(error.message);
+      }
+      return rejectWithValue('An unknown error occurred');
+    }
+  }
+);
+
+export const deleteGroup = createAsyncThunk(
+  'groups/deleteGroup',
+  async (data: DeleteGroupData, { rejectWithValue }) => {
+    try {
+      // Get group document to check if user is admin
+      const groupRef = doc(firestore, 'groups', data.groupId);
+      const groupSnapshot = await getDoc(groupRef);
+
+      if (!groupSnapshot.exists()) {
+        return rejectWithValue('Group not found');
+      }
+
+      const groupData = groupSnapshot.data();
+      // Check if user is admin in the main group document (primary source)
+      const isAdminInMainDoc =
+        groupData.members &&
+        groupData.members[data.userId] &&
+        groupData.members[data.userId].role === 'admin';
+      if (!isAdminInMainDoc) {
+        // Members subcollection is deprecated according to firestore rules
+        return rejectWithValue('Only group admins can delete groups');
+      }
+      // User is confirmed as admin - Delete the group
+      // Delete the main group document directly (members subcollection is deprecated)
+      const batch = writeBatch(firestore);
+      batch.delete(groupRef);
+      // Execute the batch
+      await batch.commit();
+      return data.groupId;
     } catch (error) {
       if (error instanceof Error) {
         return rejectWithValue(error.message);
@@ -221,16 +267,12 @@ export const inviteMember = createAsyncThunk(
         where('groupId', '==', data.groupId),
         where('email', '==', data.email.toLowerCase())
       );
-      
       const existingInvitesSnapshot = await getDocs(existingInvitesQuery);
-      
       if (!existingInvitesSnapshot.empty) {
         return rejectWithValue('This person has already been invited to this group');
       }
-      
       // Create the invitation
       const inviteRef = doc(collection(firestore, 'invites'));
-      
       await setDoc(inviteRef, {
         groupId: data.groupId,
         email: data.email.trim().toLowerCase(),
@@ -361,13 +403,29 @@ const groupsSlice = createSlice({
         state.status = 'failed';
         state.error = action.payload as string;
       });
+    // Delete group
+    builder
+      .addCase(deleteGroup.pending, state => {
+        state.status = 'loading';
+        state.error = null;
+      })
+      .addCase(deleteGroup.fulfilled, (state, action) => {
+        state.status = 'succeeded';
+        // Remove the deleted group from the array
+        state.groups = state.groups.filter(group => group.id !== action.payload);
+        // Clear current group if it was the one deleted
+        if (state.currentGroup && state.currentGroup.id === action.payload) {
+          state.currentGroup = null;
+        }
+        state.error = null;
+      })
+      .addCase(deleteGroup.rejected, (state, action) => {
+        state.status = 'failed';
+        state.error = action.payload as string;
+      });
   },
 });
 
-export const { 
-  setCurrentGroup, 
-  clearGroupsError, 
-  updateGroupLastActivity, 
-  resetGroups 
-} = groupsSlice.actions;
+export const { setCurrentGroup, clearGroupsError, updateGroupLastActivity, resetGroups } =
+  groupsSlice.actions;
 export default groupsSlice.reducer;

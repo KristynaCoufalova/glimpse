@@ -105,31 +105,51 @@ const RecordingScreen: React.FC = () => {
 
       setRecordingTimer(timer);
 
-      // Start recording
-      const video = await cameraRef.current.recordAsync({
+      // Start recording with explicit options
+      cameraRef.current.recordAsync({
         maxDuration: MAX_DURATION,
+        quality: '720p',
+      })
+      .then(video => {
+        // This will be called after recording stops and video is ready
+        if (video && video.uri) {
+          console.log('Video recorded successfully:', video.uri);
+          setVideoUri(video.uri);
+        }
+      })
+      .catch(error => {
+        console.error('Error recording video:', error);
+        Alert.alert('Error', 'Failed to record video. Please try again.');
+        setIsRecording(false);
       });
-
-      if (video && video.uri) {
-        setVideoUri(video.uri);
-      }
     } catch (error) {
-      console.error('Error recording video:', error);
-      Alert.alert('Error', 'Failed to record video. Please try again.');
+      console.error('Error starting video recording:', error);
+      Alert.alert('Error', 'Failed to start video recording. Please try again.');
       setIsRecording(false);
     }
   };
 
   // Stop recording
   const stopRecording = () => {
-    if (!cameraRef.current) return;
+    if (!cameraRef.current || !isRecording) return;
 
-    cameraRef.current.stopRecording();
-    setIsRecording(false);
+    try {
+      console.log('Stopping video recording...');
+      cameraRef.current.stopRecording();
+      setIsRecording(false);
 
-    if (recordingTimer) {
-      clearInterval(recordingTimer);
-      setRecordingTimer(null);
+      if (recordingTimer) {
+        clearInterval(recordingTimer);
+        setRecordingTimer(null);
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      setIsRecording(false);
+      
+      if (recordingTimer) {
+        clearInterval(recordingTimer);
+        setRecordingTimer(null);
+      }
     }
   };
 

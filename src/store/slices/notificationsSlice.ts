@@ -7,7 +7,6 @@ import {
   doc,
   updateDoc,
   getDoc,
-  setDoc,
   Timestamp,
   DocumentData,
 } from 'firebase/firestore';
@@ -141,15 +140,26 @@ export const respondToGroupInvitation = createAsyncThunk(
             return rejectWithValue('Group not found');
           }
           console.log('Group exists, adding member');
-          // Create a members subcollection document for the user
-          // This approach avoids permission issues with updating the root group document
-          const memberDocRef = doc(firestore, `groups/${inviteData.groupId}/members/${userId}`);
-          await setDoc(memberDocRef, {
+          // Get the group data
+          const groupData = groupDoc.data();
+          // 1. Create member data
+          const memberData = {
             id: userId,
             role: 'member',
             joinedAt: Timestamp.now(),
+          };
+          // 2. Update the main group document's members map
+          // Create updated members object
+          const updatedMembers = {
+            ...(groupData.members || {}),
+            [userId]: memberData,
+          };
+          // Update the group document
+          await updateDoc(groupRef, {
+            members: updatedMembers,
+            lastActivity: Timestamp.now(),
           });
-          console.log('Member added to group');
+          console.log('Member added to main group document');
           // Update invitation status
           await updateDoc(inviteRef, { status: 'accepted' });
           console.log('Invitation accepted');

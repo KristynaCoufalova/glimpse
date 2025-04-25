@@ -24,9 +24,9 @@ import NotificationsScreen from '../screens/notifications/NotificationsScreen';
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
-  Recording: undefined;
+  Recording: { groupId?: string; selectedGroupIds?: string[] };
   GroupDetail: { groupId: string };
-  CreateGroup: undefined;
+  CreateGroup: { groupId?: string };  // Optional groupId for editing
   EditProfile: undefined;
   Onboarding: undefined;
   PrivacyPolicy: undefined;

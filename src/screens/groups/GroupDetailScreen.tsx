@@ -19,7 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../store';
-import { fetchGroupById, inviteMember } from '../../store/slices/groupsSlice';
+import { fetchGroupById, inviteMember, deleteGroup } from '../../store/slices/groupsSlice';
 import { fetchVideosForGroup } from '../../store/slices/videosSlice';
 import { isValidEmail } from '../../utils';
 import { COLORS } from '../../constants';
@@ -60,40 +60,35 @@ const GroupDetailScreen: React.FC = () => {
     }
   }, [dispatch, groupId, user]);
 
-  // Fetch group members from subcollection when group changes
+  // Get merged member data from Redux store when group changes
   useEffect(() => {
-    const fetchGroupMembers = async () => {
-      if (!groupId) return;
+    const getMemberDataFromGroup = async () => {
+      if (!group || !group.members) return;
       
       setMembersLoading(true);
       try {
-        const membersRef = collection(firestore, `groups/${groupId}/members`);
-        const membersSnapshot = await getDocs(query(membersRef));
+        // Convert the members object from group to array for rendering
+        const membersArray = Object.entries(group.members).map(([id, memberData]) => ({
+          id,
+          ...memberData
+        }));
         
-        const members: any[] = [];
-        membersSnapshot.forEach(doc => {
-          members.push({
-            id: doc.id,
-            ...doc.data()
-          });
-        });
-        
-        setGroupMembers(members);
+        setGroupMembers(membersArray);
         
         // Fetch user profiles for each member
-        const userIds = members.map(member => member.id);
+        const userIds = membersArray.map(member => member.id);
         await fetchUserProfiles(userIds);
       } catch (error) {
-        console.error('Error fetching group members:', error);
+        console.error('Error processing group members:', error);
       } finally {
         setMembersLoading(false);
       }
     };
     
     if (group) {
-      fetchGroupMembers();
+      getMemberDataFromGroup();
     }
-  }, [group, groupId]);
+  }, [group]);
 
   // Fetch user profiles for members
   const fetchUserProfiles = async (userIds: string[]) => {
@@ -123,7 +118,7 @@ const GroupDetailScreen: React.FC = () => {
 
   const handleRecordVideo = () => {
     // Pass the current group ID to the recording screen
-    navigation.navigate('Recording', { selectedGroupIds: [groupId] });
+    navigation.navigate('Recording', { groupId });
   };
 
   const handleInviteMember = () => {
@@ -181,12 +176,64 @@ const GroupDetailScreen: React.FC = () => {
     return date.toLocaleDateString();
   };
 
-  // Check if current user is admin
+  // Check if current user is admin (using merged data from Redux)
   const isCurrentUserAdmin = () => {
-    if (!groupMembers || !user) return false;
+    if (!user || !group || !group.members) return false;
     
-    const currentUserMember = groupMembers.find(member => member.id === user.uid);
-    return currentUserMember && currentUserMember.role === 'admin';
+    // The group.members in Redux already contains merged data from both sources
+    return !!(group.members[user.uid] && group.members[user.uid].role === 'admin');
+  };
+
+  // Handle edit group navigation
+  const handleEditGroup = () => {
+    if (!group) return;
+    navigation.navigate('CreateGroup', { groupId: group.id });
+  };
+
+  // Handle delete group with confirmation
+  const handleDeleteGroup = () => {
+    Alert.alert(
+      'Delete Group',
+      'Are you sure you want to delete this group? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user || !groupId) return;
+            
+            try {
+              // Show loading indicator
+              setMembersLoading(true);
+              
+              // Call the deleteGroup thunk
+              const resultAction = await dispatch(deleteGroup({ 
+                groupId, 
+                userId: user.uid 
+              }) as any);
+              
+              if (deleteGroup.fulfilled.match(resultAction)) {
+                // Success - navigate back to groups screen
+                Alert.alert('Success', 'Group deleted successfully');
+                navigation.navigate('Main');
+              } else if (deleteGroup.rejected.match(resultAction)) {
+                // Error handling
+                Alert.alert('Error', resultAction.payload as string || 'Failed to delete group');
+              }
+            } catch (error) {
+              console.error('Error deleting group:', error);
+              Alert.alert('Error', 'An unexpected error occurred while deleting the group');
+            } finally {
+              setMembersLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const renderVideoItem = ({ item }: { item: any }) => {
@@ -346,33 +393,70 @@ const GroupDetailScreen: React.FC = () => {
             )}
           </View>
 
-          <View style={styles.groupInfo}>
-            <Text style={styles.groupName}>{group.name}</Text>
-            <Text style={styles.groupDescription}>{group.description || 'No description'}</Text>
+        <View style={styles.groupInfo}>
+          <Text style={styles.groupName}>{group.name}</Text>
+          <Text style={styles.groupDescription}>{group.description || 'No description'}</Text>
 
-            <View style={styles.groupActions}>
-              <TouchableOpacity style={styles.actionButton} onPress={handleRecordVideo}>
-                <Ionicons name="videocam" size={20} color={COLORS.primary} />
-                <Text style={styles.actionButtonText}>Record</Text>
-              </TouchableOpacity>
+          <View style={styles.groupActions}>
+            <TouchableOpacity style={styles.actionButton} onPress={handleRecordVideo}>
+              <Ionicons name="videocam" size={20} color={COLORS.primary} />
+              <Text style={styles.actionButtonText}>Record</Text>
+            </TouchableOpacity>
 
-              {isCurrentUserAdmin() && (
+            {isCurrentUserAdmin() && (
+              <>
                 <TouchableOpacity style={styles.actionButton} onPress={handleInviteMember}>
                   <Ionicons name="person-add" size={20} color={COLORS.primary} />
                   <Text style={styles.actionButtonText}>Invite</Text>
                 </TouchableOpacity>
-              )}
-            </View>
+                
+                <TouchableOpacity style={styles.actionButton} onPress={handleEditGroup}>
+                  <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.actionButtonText}>Edit</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
+        </View>
         </View>
 
         {/* Members section */}
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>
-            Members ({groupMembers.length})
+            Members ({group.members ? Object.keys(group.members).length : 0})
           </Text>
           {renderMembers()}
         </View>
+        
+        {/* Admin Controls */}
+        {isCurrentUserAdmin() && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Admin Controls</Text>
+            <View style={styles.adminControlsContainer}>
+              <Text style={styles.adminControlsDescription}>
+                As an admin, you can manage this group's settings and members.
+              </Text>
+              
+              <View style={styles.adminButtonsRow}>
+                <TouchableOpacity
+                  style={styles.adminButton}
+                  onPress={handleEditGroup}
+                >
+                  <Ionicons name="create-outline" size={20} color={COLORS.primary} />
+                  <Text style={styles.adminButtonText}>Edit Group</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.adminButton, styles.dangerButton]}
+                  onPress={handleDeleteGroup}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
+                  <Text style={[styles.adminButtonText, styles.dangerButtonText]}>Delete Group</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
 
         {/* Videos section */}
         <View style={styles.sectionContainer}>
@@ -450,6 +534,43 @@ const GroupDetailScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  adminButton: {
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    flexDirection: 'row',
+    marginRight: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    width: '48%',
+  },
+  adminButtonText: {
+    color: COLORS.primary,
+    fontWeight: 'bold',
+    marginLeft: 5,
+  },
+  adminButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 15,
+  },
+  adminControlsContainer: {
+    backgroundColor: '#f9f9f9',
+    borderRadius: 8,
+    marginTop: 10,
+    padding: 15,
+  },
+  adminControlsDescription: {
+    color: '#666',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  dangerButton: {
+    backgroundColor: '#FFF0F0',
+  },
+  dangerButtonText: {
+    color: '#FF6B6B',
+  },
   actionButton: {
     alignItems: 'center',
     backgroundColor: '#f5f5f5',
