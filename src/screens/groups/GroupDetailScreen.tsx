@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
 import { useDispatch, useSelector } from 'react-redux';
@@ -52,13 +52,25 @@ const GroupDetailScreen: React.FC = () => {
 
   const loading = groupStatus === 'loading' || videosStatus === 'loading';
 
-  // Fetch group and videos when component mounts
+  // Fetch group when component mounts
   useEffect(() => {
     if (groupId && user) {
       dispatch(fetchGroupById(groupId) as any);
-      dispatch(fetchVideosForGroup({ groupId }) as any);
     }
   }, [dispatch, groupId, user]);
+  
+  // Fetch videos when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (groupId && user) {
+        console.log('GroupDetailScreen focused, fetching videos for group:', groupId);
+        dispatch(fetchVideosForGroup({ groupId }) as any);
+      }
+      return () => {
+        // Cleanup if needed
+      };
+    }, [dispatch, groupId, user])
+  );
 
   // Get merged member data from Redux store when group changes
   useEffect(() => {

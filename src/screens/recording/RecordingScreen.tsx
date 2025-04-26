@@ -14,6 +14,7 @@ import {
 import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { Camera, CameraView, type CameraType } from 'expo-camera';
+import VideoPlayer from '../../components/video/VideoPlayer';
 import { useNavigation, StackActions, useRoute, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../navigation';
@@ -431,7 +432,11 @@ const RecordingScreen: React.FC = () => {
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.controlButton} onPress={toggleFlashMode}>
-                <Ionicons name={flashMode === 'off' ? "flash-off" : "flash"} size={28} color="#fff" />
+                <Ionicons 
+                  name={flashMode === 'off' ? 'flash-off' : 'flash'}
+                  size={28}
+                  color="#fff" 
+                />
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.controlButton} onPress={toggleCameraType}>
@@ -464,12 +469,22 @@ const RecordingScreen: React.FC = () => {
         </View>
       ) : (
         <View style={styles.previewContainer}>
-          {/* Video preview placeholder */}
+          {/* Video preview */}
           <View style={styles.videoPreview}>
-            <Text style={styles.previewText}>Video Preview</Text>
-            <Text style={styles.previewSubtext}>
-              (Your recorded video will appear here)
-            </Text>
+            {videoUri ? (
+              <VideoPlayer 
+                uri={videoUri} 
+                isActive={true} 
+                onVideoEnd={() => {}} 
+              />
+            ) : (
+              <>
+                <Text style={styles.previewText}>Video Preview</Text>
+                <Text style={styles.previewSubtext}>
+                  No video available
+                </Text>
+              </>
+            )}
           </View>
 
           <ScrollView style={styles.previewForm}>

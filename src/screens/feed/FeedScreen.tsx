@@ -12,8 +12,13 @@ import { SafeScreen } from '../../components/common';
 import { Ionicons } from '@expo/vector-icons';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList } from '../../navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { RootState } from '../../store';
+import { fetchFeedVideos, Video } from '../../store/slices/videosSlice';
+import { useFocusEffect } from '@react-navigation/native';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { firestore } from '../../services/firebase/config';
 
-// This will be a component we'll create later
 import VideoPlayer from '../../components/video/VideoPlayer';
 
 type FeedScreenNavigationProp = BottomTabNavigationProp<MainTabParamList, 'Feed'>;
@@ -22,100 +27,78 @@ interface FeedScreenProps {
   navigation: FeedScreenNavigationProp;
 }
 
-// Mock data for videos
-interface VideoItem {
-  id: string;
-  videoUrl: string;
-  thumbnailUrl: string;
-  caption: string;
-  creator: {
-    id: string;
-    name: string;
-    avatarUrl: string;
-  };
-  groupId: string;
-  groupName: string;
-  createdAt: string;
-  likes: number;
-  comments: number;
-  duration: number;
+// For storing group names mapped by ID
+interface GroupMap {
+  [groupId: string]: string;
 }
 
 const { width, height } = Dimensions.get('window');
 
-// Mock data
-const mockVideos: VideoItem[] = [
-  {
-    id: '1',
-    videoUrl: 'https://example.com/video1.mp4',
-    thumbnailUrl: 'https://example.com/thumbnail1.jpg',
-    caption: 'Enjoying a beautiful sunset at the beach! #sunset #beach',
-    creator: {
-      id: 'user1',
-      name: 'Sarah Johnson',
-      avatarUrl: 'https://example.com/avatar1.jpg',
-    },
-    groupId: 'group1',
-    groupName: 'Family',
-    createdAt: '2023-06-15T14:30:00Z',
-    likes: 12,
-    comments: 3,
-    duration: 45,
-  },
-  {
-    id: '2',
-    videoUrl: 'https://example.com/video2.mp4',
-    thumbnailUrl: 'https://example.com/thumbnail2.jpg',
-    caption: 'First day at my new job! So excited for this opportunity.',
-    creator: {
-      id: 'user2',
-      name: 'Michael Chen',
-      avatarUrl: 'https://example.com/avatar2.jpg',
-    },
-    groupId: 'group2',
-    groupName: 'College Friends',
-    createdAt: '2023-06-14T09:15:00Z',
-    likes: 24,
-    comments: 8,
-    duration: 60,
-  },
-  {
-    id: '3',
-    videoUrl: 'https://example.com/video3.mp4',
-    thumbnailUrl: 'https://example.com/thumbnail3.jpg',
-    caption: 'Making pasta from scratch for the first time!',
-    creator: {
-      id: 'user3',
-      name: 'Emma Wilson',
-      avatarUrl: 'https://example.com/avatar3.jpg',
-    },
-    groupId: 'group1',
-    groupName: 'Family',
-    createdAt: '2023-06-13T18:45:00Z',
-    likes: 18,
-    comments: 5,
-    duration: 75,
-  },
-];
-
-// Group filter options
-const groupFilters = [
-  { id: 'all', name: 'All Groups' },
-  { id: 'group1', name: 'Family' },
-  { id: 'group2', name: 'College Friends' },
-  { id: 'group3', name: 'Work Team' },
-];
-
 const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
-  const [videos, setVideos] = useState<VideoItem[]>(mockVideos);
-  const [loading, setLoading] = useState(false);
+  const dispatch = useDispatch();
+  const { user } = useSelector((state: RootState) => state.auth);
+  const { feedVideos, status } = useSelector((state: RootState) => state.videos);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedGroup, setSelectedGroup] = useState('all');
+  const [groupNames, setGroupNames] = useState<GroupMap>({});
+  const [groupFilters, setGroupFilters] = useState<{ id: string; name: string }[]>([
+    { id: 'all', name: 'All Groups' },
+  ]);
   const flatListRef = useRef<FlatList>(null);
+
+  // Fetch videos when the screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      const loadFeedData = async () => {
+        if (user) {
+          // Fetch videos for the current user's groups
+          dispatch(fetchFeedVideos({ userId: user.uid }) as any);
+          // Fetch group names for filtering
+          await fetchGroupNamesForUser(user.uid);
+        }
+      };
+      
+      loadFeedData();
+    }, [dispatch, user])
+  );
+
+  // Fetch group names for the user
+  const fetchGroupNamesForUser = async (userId: string) => {
+    try {
+      // Query groups where the user is a member
+      const userGroupsQuery = query(
+        collection(firestore, 'groups'),
+        where(`members.${userId}.id`, '==', userId)
+      );
+      
+      const userGroupsSnapshot = await getDocs(userGroupsQuery);
+      const groups: { id: string; name: string }[] = [{ id: 'all', name: 'All Groups' }];
+      const groupNameMap: GroupMap = {};
+      
+      userGroupsSnapshot.forEach(doc => {
+        const groupData = doc.data();
+        groups.push({ id: doc.id, name: groupData.name });
+        groupNameMap[doc.id] = groupData.name;
+      });
+      
+      setGroupFilters(groups);
+      setGroupNames(groupNameMap);
+    } catch (error) {
+      console.error('Error fetching group names:', error);
+    }
+  };
+
+  // Handle liking a video
+  const handleLikeVideo = (videoId: string) => {
+    console.log('Like video:', videoId);
+    // TODO: Implement like functionality
+  };
 
   // Filter videos based on selected group
   const filteredVideos =
-    selectedGroup === 'all' ? videos : videos.filter(video => video.groupId === selectedGroup);
+    selectedGroup === 'all'
+      ? feedVideos
+      : feedVideos.filter(video => video.groupIds.includes(selectedGroup));
 
   const handleViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0) {
@@ -127,33 +110,47 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
     itemVisiblePercentThreshold: 50,
   }).current;
 
-  const renderVideo = ({ item, index }: { item: VideoItem; index: number }) => {
+  const renderVideo = ({ item, index }: { item: Video; index: number }) => {
+    // Get the group name for display
+    const groupName = item.groupIds.length > 0 ? groupNames[item.groupIds[0]] || 'Group'
+      : 'Unknown Group';
+
     return (
       <View style={styles.videoContainer}>
-        {/* This will be replaced with an actual VideoPlayer component */}
-        <View style={styles.videoPlaceholder}>
-          <Text style={styles.videoPlaceholderText}>Video {index + 1}</Text>
-          <Text style={styles.videoPlaceholderCaption}>{item.caption}</Text>
-          <Text style={styles.videoPlaceholderGroup}>Group: {item.groupName}</Text>
-        </View>
+        {/* Video Player */}
+        <VideoPlayer
+          uri={item.videoURL}
+          thumbnailUri={item.thumbnailURL}
+          isActive={index === currentIndex}
+          onVideoEnd={() => {
+            // Optionally handle video end
+          }}
+          onDoubleTap={() => handleLikeVideo(item.id)}
+        />
 
         {/* Video controls */}
         <View style={styles.videoControls}>
           <View style={styles.creatorInfo}>
             <View style={styles.creatorAvatar} />
-            <Text style={styles.creatorName}>{item.creator.name}</Text>
+            <Text style={styles.creatorName}>
+              {item.creator === user?.uid ? 'You' : 'Group Member'}
+            </Text>
             <Text style={styles.videoCaption}>{item.caption}</Text>
+            <Text style={styles.groupName}>Group: {groupName}</Text>
           </View>
 
           <View style={styles.interactionControls}>
-            <TouchableOpacity style={styles.interactionButton}>
+            <TouchableOpacity
+              style={styles.interactionButton}
+              onPress={() => handleLikeVideo(item.id)}
+            >
               <Ionicons name="heart-outline" size={28} color="white" />
-              <Text style={styles.interactionCount}>{item.likes}</Text>
+              <Text style={styles.interactionCount}>{item.reactions?.likes || 0}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.interactionButton}>
               <Ionicons name="chatbubble-outline" size={28} color="white" />
-              <Text style={styles.interactionCount}>{item.comments}</Text>
+              <Text style={styles.interactionCount}>{item.reactions?.comments || 0}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -198,17 +195,15 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
     );
   };
 
+  const isLoading = status === 'loading';
+
   return (
-    <SafeScreen 
-      style={styles.container} 
-      statusBarStyle="light-content" 
-      statusBarColor="#000"
-    >
+    <SafeScreen style={styles.container} statusBarStyle="light-content" statusBarColor="#000">
       {/* Header with notification icon */}
       <View style={styles.headerContainer}>
         <View style={styles.headerContent}>
           <Text style={styles.headerTitle}>Feed</Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.notificationIcon}
             onPress={() => navigation.navigate('Notifications' as any)}
           >
@@ -219,7 +214,7 @@ const FeedScreen: React.FC<FeedScreenProps> = ({ navigation }) => {
         {renderGroupFilter()}
       </View>
 
-      {loading ? (
+      {isLoading ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#4ECDC4" />
         </View>
@@ -304,26 +299,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  headerContainer: {
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
-    paddingTop: 10,
-    zIndex: 10,
-  },
-  headerContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  headerTitle: {
-    color: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  notificationIcon: {
-    padding: 5,
-  },
   groupFilterContainer: {
     paddingTop: 5,
     zIndex: 10,
@@ -348,6 +323,28 @@ const styles = StyleSheet.create({
   groupFilterTextSelected: {
     fontWeight: 'bold',
   },
+  groupName: {
+    color: '#4ECDC4',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  headerContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    paddingTop: 10,
+    zIndex: 10,
+  },
+  headerContent: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  headerTitle: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
   interactionButton: {
     alignItems: 'center',
     marginBottom: 15,
@@ -364,6 +361,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     justifyContent: 'center',
+  },
+  notificationIcon: {
+    padding: 5,
   },
   progressBar: {
     backgroundColor: '#4ECDC4',
@@ -401,30 +401,6 @@ const styles = StyleSheet.create({
     padding: 20,
     position: 'absolute',
     right: 0,
-  },
-  videoPlaceholder: {
-    alignItems: 'center',
-    backgroundColor: '#222',
-    height: '100%',
-    justifyContent: 'center',
-    width: '100%',
-  },
-  videoPlaceholderCaption: {
-    color: 'white',
-    fontSize: 16,
-    marginBottom: 10,
-    paddingHorizontal: 40,
-    textAlign: 'center',
-  },
-  videoPlaceholderGroup: {
-    color: '#4ECDC4',
-    fontSize: 14,
-  },
-  videoPlaceholderText: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
   },
 });
 
