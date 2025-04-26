@@ -3,39 +3,110 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // User profiles - users can read/write only their own data
     match /users/{userId} {
-      allow read: if request.auth != null;  // Allow any authenticated user to read profiles
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Groups - Using only embedded members approach
+    // Groups - members can read, only admins can update group details
     match /groups/{groupId} {
-      // Allow any authenticated user to read groups
-      // This solves the permission issue for invitations
-      allow read: if request.auth != null;
-      
-      // Allow creating new groups for any authenticated user
-      allow create: if request.auth != null;
-      
-      // Allow any authenticated user to update groups
-      // This is a temporary solution to fix invitation acceptance
-      allow update: if request.auth != null;
-      
-      // Only admins can delete groups
-      allow delete: if request.auth != null && 
-                    (resource.data.members is map && 
-                     resource.data.members[request.auth.uid] is map && 
-                     resource.data.members[request.auth.uid].role == "admin");
+      allow read: if request.auth != null &&
+                  (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) ||
+                   hasValidInvitation(request.auth.uid, groupId));
+                  
+      // Allow writing to the group document in the following cases:
+      // 1. User is an admin
+      // 2. User has a valid invitation and is only adding themselves as a member
+      allow write: if request.auth != null &&
+                   (
+                     (exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+                      get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin") ||
+                     (
+                       hasValidInvitation(request.auth.uid, groupId) && 
+                       isOnlyAddingSelfAsMember(request.auth.uid)
+                     )
+                   );
     }
     
-    // We're not using members subcollection anymore, but keep the rule for any existing data
+    // Group members - nested collection for member management
     match /groups/{groupId}/members/{memberId} {
-      allow read: if request.auth != null;
-      allow write: if false;  // Disallow new writes to this collection
+      // Members can see who else is in their group
+      allow read: if request.auth != null && 
+                  exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid));
+      
+      // Users can create their own member document when accepting an invitation
+      allow create: if request.auth != null && 
+                    memberId == request.auth.uid &&
+                    (
+                      // Either they have a pending invitation
+                      hasValidInvitation(request.auth.uid, groupId) ||
+                      // Or they are already in the members map of the main group document
+                      exists(/databases/$(database)/documents/groups/$(groupId)) &&
+                      request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members
+                    );
+      
+      // Only group admins can update or delete members
+      allow update, delete: if request.auth != null && 
+                           exists(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)) &&
+                           get(/databases/$(database)/documents/groups/$(groupId)/members/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Invites collection for group invitations
+    match /invites/{inviteId} {
+      // Allow listing/querying all invitations where the email matches the user's email
+      allow list: if request.auth != null && 
+                  request.query.limit <= 50 &&
+                  request.query.filters.size() >= 1 && 
+                  (
+                    // Specifically allow querying by email for the current user
+                    request.query.filters.findIndex(f, 
+                      f.fieldPath == "email" && 
+                      f.op == "==" && 
+                      f.value == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email
+                    ) >= 0
+                  );
+
+      // Allow reading single invite documents
+      allow get: if request.auth != null && 
+                resource.data.email == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email;
+      
+      // Users can update invitation status when accepting/declining
+      allow update: if request.auth != null &&
+                    resource.data.email == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.email &&
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'errorMessage']);
+      
+      // Only group admins can create invitations
+      allow create: if request.auth != null &&
+                    exists(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/members/$(request.auth.uid)) &&
+                    get(/databases/$(database)/documents/groups/$(request.resource.data.groupId)/members/$(request.auth.uid)).data.role == "admin";
+    }
+    
+    // Helper function to check if user has a valid invitation for the group
+    function hasValidInvitation(userId, groupId) {
+      let userEmail = get(/databases/$(database)/documents/users/$(userId)).data.email;
+      
+      // Query for pending invitations for this user's email to this group
+      let invitesQuery = getAfter(/databases/$(database)/documents/invites, 
+        where('email', '==', userEmail),
+        where('groupId', '==', groupId),
+        where('status', '==', 'pending')).size() > 0;
+        
+      return invitesQuery;
+    }
+    
+    // Helper function to check if the user is only adding themselves as a member
+    function isOnlyAddingSelfAsMember(userId) {
+      // Check if the write operation is only adding the user as a member
+      let existingData = resource.data.members;
+      let newData = request.resource.data.members;
+      
+      // The only difference should be the addition of the user's own entry
+      let addedMember = !existingData.hasAll([userId]) && newData.hasAll([userId]);
+      let onlyAddedSelf = newData.size() == existingData.size() + 1;
+      
+      return addedMember && onlyAddedSelf;
     }
     
     // Videos - users can see videos from their groups, create their own
     match /videos/{videoId} {
-      // Allow any authenticated user to read videos
       allow read: if request.auth != null;
       
       // Users can only upload videos as themselves
@@ -43,22 +114,6 @@ service cloud.firestore {
       
       // Only video creator can update or delete their videos
       allow update, delete: if request.auth != null && resource.data.creator == request.auth.uid;
-    }
-    
-    // Invites - Allow users to create and read invites
-    match /invites/{inviteId} {
-      // Anyone can create invites (we'll control this in the app logic)
-      allow create: if request.auth != null;
-      
-      // Anyone can read invites (for debugging, you can make this more restrictive later)
-      allow read: if request.auth != null;
-      
-      // Anyone can update invites (for accepting/declining)
-      allow update: if request.auth != null;
-                    
-      // You can delete invites if you're the sender
-      allow delete: if request.auth != null && 
-                    resource.data.invitedBy == request.auth.uid;
     }
     
     // Reactions (comments, likes) - members of the group can interact
@@ -74,4 +129,4 @@ service cloud.firestore {
       allow update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
   }
-}
+} 

@@ -1,20 +1,13 @@
 // src/services/firebase/config.ts
 import { initializeApp } from 'firebase/app';
-import { initializeAuth, getAuth, getReactNativePersistence, Persistence } from 'firebase/auth';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { FIREBASE_CONFIG } from '../../config/environment';
 
-// Firebase configuration
-const firebaseConfig = {
-  apiKey: 'AIzaSyBSPsfibfymk7alMe5JpF8W_-nTmSdY7AI',
-  authDomain: 'glimpse-31af8.firebaseapp.com',
-  projectId: 'glimpse-31af8',
-  storageBucket: 'glimpse-31af8.firebasestorage.app',
-  messagingSenderId: '737095863798',
-  appId: '1:737095863798:web:decc2ebd483e76a1010bd7',
-  measurementId: 'G-4NKD612834',
-};
+// Use Firebase configuration from environment
+const firebaseConfig = FIREBASE_CONFIG;
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -23,7 +16,7 @@ const app = initializeApp(firebaseConfig);
 let auth;
 try {
   auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
   });
   console.log('Firebase Auth initialized with React Native persistence');
 } catch (error) {

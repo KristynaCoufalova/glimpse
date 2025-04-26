@@ -7,6 +7,7 @@ import {
   doc,
   updateDoc,
   getDoc,
+  setDoc,
   Timestamp,
   DocumentData,
 } from 'firebase/firestore';
@@ -128,6 +129,7 @@ export const respondToGroupInvitation = createAsyncThunk(
 
       const inviteData = inviteDoc.data();
       console.log(`Invitation data: ${JSON.stringify(inviteData)}`);
+
       if (accept) {
         try {
           // Get the group
@@ -139,30 +141,43 @@ export const respondToGroupInvitation = createAsyncThunk(
             await updateDoc(inviteRef, { status: 'error', errorMessage: 'Group not found' });
             return rejectWithValue('Group not found');
           }
+
           console.log('Group exists, adding member');
-          // Get the group data
+
+          // First, update the main group document to include the member
+          // This resolves the permission issue because the security rules check for member existence
+          // in the main group document first
           const groupData = groupDoc.data();
-          // 1. Create member data
-          const memberData = {
+          const updatedMembers = {
+            ...groupData.members,
+            [userId]: {
+              id: userId,
+              role: 'member',
+              joinedAt: Timestamp.now(),
+            },
+          };
+
+          // Update the group document with the new member
+          await updateDoc(groupRef, {
+            members: updatedMembers,
+          });
+
+          console.log('Updated group document with new member');
+
+          // Now create a members subcollection document for the user
+          const memberDocRef = doc(firestore, `groups/${inviteData.groupId}/members/${userId}`);
+          await setDoc(memberDocRef, {
             id: userId,
             role: 'member',
             joinedAt: Timestamp.now(),
-          };
-          // 2. Update the main group document's members map
-          // Create updated members object
-          const updatedMembers = {
-            ...(groupData.members || {}),
-            [userId]: memberData,
-          };
-          // Update the group document
-          await updateDoc(groupRef, {
-            members: updatedMembers,
-            lastActivity: Timestamp.now(),
           });
-          console.log('Member added to main group document');
+
+          console.log('Member added to group subcollection');
+
           // Update invitation status
           await updateDoc(inviteRef, { status: 'accepted' });
           console.log('Invitation accepted');
+
           // Fetch the updated group to refresh the UI
           dispatch(fetchGroupById(inviteData.groupId) as any);
           return {
