@@ -53,6 +53,8 @@ const RecordingScreen: React.FC = () => {
   const [caption, setCaption] = useState('');
   const [selectedGroups, setSelectedGroups] = useState<string[]>(initialSelectedGroups);
   const [showPrompt, setShowPrompt] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(false);
   
   const isUploading = status === 'loading';
 
@@ -84,12 +86,53 @@ const RecordingScreen: React.FC = () => {
     setFlashMode(current => (current === 'off' ? 'torch' : 'off'));
   };
 
-  // Start recording
-  const startRecording = async () => {
-    if (!cameraRef.current) return;
+  // Check if device can record video
+  const checkRecordingCapabilities = async (): Promise<boolean> => {
+    try {
+      const { status: cameraStatus } = await Camera.getCameraPermissionsAsync();
+      const { status: micStatus } = await Camera.getMicrophonePermissionsAsync();
+      
+      // Re-request permissions if needed
+      if (cameraStatus !== 'granted') {
+        const { status } = await Camera.requestCameraPermissionsAsync();
+        if (status !== 'granted') return false;
+      }
+      
+      if (micStatus !== 'granted') {
+        const { status } = await Camera.requestMicrophonePermissionsAsync();
+        if (status !== 'granted') return false;
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error checking recording capabilities:', error);
+      return false;
+    }
+  };
+
+  // Start recording with retry mechanism
+  const startRecording = async (retryCount = 0) => {
+    if (!cameraRef.current || isPreparing || isRecording) return;
+    
+    // Check if camera is ready
+    if (!isCameraReady) {
+      console.log("Camera not ready yet");
+      Alert.alert('Error', 'Camera is initializing. Please try again in a moment.');
+      return;
+    }
+    
+    // Set preparing state
+    setIsPreparing(true);
+    
+    // Check recording capabilities first
+    const canRecord = await checkRecordingCapabilities();
+    if (!canRecord) {
+      Alert.alert('Permission Error', 'Camera or microphone permission is required to record videos.');
+      return;
+    }
 
     try {
-      setIsRecording(true);
+      // Set recording state
       setRecordingDuration(0);
 
       // Start timer
@@ -105,22 +148,64 @@ const RecordingScreen: React.FC = () => {
 
       setRecordingTimer(timer);
 
-      // Start recording with explicit options
+      // Add a small delay to ensure camera is fully ready
+      // This can help prevent the "stopped before any data could be produced" error
+      console.log('Preparing camera for recording...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (!cameraRef.current || typeof cameraRef.current.recordAsync !== 'function') {
+        throw new Error('Camera reference lost during initialization or invalid camera reference');
+      }
+      
+      // Now set recording state after preparation
+      setIsRecording(true);
+      setIsPreparing(false);
+
+      // Start recording with minimal options
+      console.log('Starting video recording...');
       cameraRef.current.recordAsync({
-        maxDuration: MAX_DURATION,
-        quality: '720p',
+        maxDuration: 30, // Further reduced from 60 to 30 seconds to minimize memory usage
       })
       .then(video => {
-        // This will be called after recording stops and video is ready
-        if (video && video.uri) {
-          console.log('Video recorded successfully:', video.uri);
-          setVideoUri(video.uri);
-        }
+      // This will be called after recording stops and video is ready
+      if (video && video.uri) {
+        console.log('Video recorded successfully:', video.uri);
+        setVideoUri(video.uri);
+      } else {
+        throw new Error('No video data received');
+      }
+      setIsPreparing(false);
       })
       .catch(error => {
         console.error('Error recording video:', error);
-        Alert.alert('Error', 'Failed to record video. Please try again.');
-        setIsRecording(false);
+        
+      // Clear recording state
+      setIsRecording(false);
+      setIsPreparing(false);
+        
+        // Check for the specific error about recording stopping before data is produced
+        const errorMessage = error.toString();
+        if (errorMessage.includes('before any data could be produced')) {
+          // Try to recover by retrying once
+          if (retryCount < 1) {
+            console.log('Retrying recording after error...');
+            setTimeout(() => {
+              startRecording(retryCount + 1);
+            }, 1000);
+            return;
+          }
+          
+          Alert.alert(
+            'Recording Error', 
+            'Video recording failed to start properly. Please try:' +
+            '\n• Ensuring your device has enough free storage' +
+            '\n• Closing other apps that might be using the camera' +
+            '\n• Restarting the app', 
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert('Error', 'Failed to record video. Please try again.');
+        }
       });
     } catch (error) {
       console.error('Error starting video recording:', error);
@@ -314,8 +399,13 @@ const RecordingScreen: React.FC = () => {
         <View style={styles.cameraContainer}>
           <CameraView
             style={styles.camera}
+            mode="video"
             facing={cameraType as CameraType}
             ref={cameraRef}
+            onCameraReady={() => {
+              console.log('Camera is ready');
+              setIsCameraReady(true);
+            }}
           >
             {/* Recording timer */}
             {isRecording && (
@@ -357,12 +447,19 @@ const RecordingScreen: React.FC = () => {
           {/* Record button */}
           <View style={styles.recordButtonContainer}>
             <TouchableOpacity
-              style={[styles.recordButton, isRecording && styles.recordingButton]}
-              onPress={isRecording ? stopRecording : startRecording}
+              style={[
+                styles.recordButton, 
+                isRecording && styles.recordingButton,
+                isPreparing && styles.preparingButton
+              ]}
+              onPress={isRecording ? stopRecording : () => startRecording(0)}
+              disabled={isPreparing}
             >
               {isRecording ? <View style={styles.stopIcon} /> : <View style={styles.recordIcon} />}
             </TouchableOpacity>
-            <Text style={styles.recordText}>{isRecording ? 'Tap to stop' : 'Tap to record'}</Text>
+            <Text style={styles.recordText}>
+              {isRecording ? 'Tap to stop' : (isPreparing ? 'Preparing...' : 'Tap to record')}
+            </Text>
           </View>
         </View>
       ) : (
@@ -744,6 +841,9 @@ const styles = StyleSheet.create({
   },
   recordingButton: {
     backgroundColor: COLORS.secondary,
+  },
+  preparingButton: {
+    backgroundColor: '#999',
   },
   shareButton: {
     alignItems: 'center',
